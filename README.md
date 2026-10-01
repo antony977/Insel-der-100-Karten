@@ -5,9 +5,9 @@ Auf einer geheimnisvollen Insel ist alles eine Karte – Ziel ist es, alle 100 S
 ins eigene Kartenbuch zu bekommen. Alle Grafiken, Schriften und (später) Sounds werden per Code
 erzeugt. Das Spieldesign steht in [DESIGN.md](DESIGN.md).
 
-**Stand:** Meilenstein 3 – Echtzeitkampf mit Aura-System, 35 Monsterarten, die sich beim Besiegen
-in ihre Karten verwandeln, Level-Up mit Fähigkeitskarten. Dazu das Kartenbuch mit allen Regeln
-(Meilenstein 2) und das Speichersystem.
+**Stand:** Meilenstein 4 – die ganze Insel (13 Regionen, 7 Städte), Taufeld und Runenhall mit
+Figuren, Dialogen, Quests und Läden, alle 40 Zauber, Intro mit Affinitätswahl, Weltkarte.
+Dazu Kampf und Aura (M3), das Kartenbuch mit allen Regeln (M2) und das Speichersystem.
 
 ## Starten
 
@@ -104,7 +104,27 @@ Der Workflow `.github/workflows/deploy.yml` baut das Spiel und veröffentlicht e
 - **Zauberkarten** passen nur in freie Slots; „Wirken" folgt mit dem Kampfsystem (Meilenstein 4).
 - Solange das Buch offen ist, pausiert die Welt.
 
-### Zum Ausprobieren auf der Testwiese
+## Die Insel
+
+- **Neues Spiel:** kurzes Intro, Name, Wahl der Aura-Affinität (Wurzel, Strömung, Echo, Faden,
+  Spiegel) und ein eigener Name für die Spezialtechnik.
+- **Start am Ersten Tor in Taufeld.** Lumi erklärt alles und schenkt dir die ersten Karten.
+- **Städte:** Taufeld (Krämerin, Gasthof, Oma Hilde, Bauer Korbinian), Runenhall im Norden
+  (Orden der Siegel, Bibliothek, Zauberladen mit Siegelpacks, Kräuterladen, Teestube, Schuster,
+  Tauschbörse). Möwenhafen, Würfelheim, Hohenkamm, Sandspiegel und Rosenweil sind schon da und
+  werden in Meilenstein 6 belebt.
+- **Rastfeuer:** ausruhen (heilt, speichert, Wiederaufwach-Punkt). **Stadtbrunnen:** Ziel für
+  Brunnensprung; der Brunnen in Taufeld ist ein Wunschbrunnen.
+- **Weltkarte (M):** zeigt nur, was du schon erkundet hast.
+- **Zauber:** im Buch eine Zauberkarte (freie Slots) wählen → „Wirken" oder „Auf Taste" (1–3).
+- **Quest-Log:** neuer Reiter „Quests" im Kartenbuch.
+- Versteckte Dinge (z. B. ein vierblättriger Klee) siehst du nur mit **Aura-Sinn**.
+
+### Zum Ausprobieren
+
+`?map=testwiese` in der Adresse (nur `npm run dev`) lädt wieder die alte Testwiese.
+
+### Auf der Testwiese
 
 - **Lumi** (neben dem Startpunkt) ansprechen → 3 Startkarten.
 - **4 Truhen** sind versteckt (beim Haus, im Garten, im Wald, am See).
@@ -137,7 +157,7 @@ Der Workflow `.github/workflows/deploy.yml` baut das Spiel und veröffentlicht e
 | F9 | Alle generierten Grafiken als PNG-Vorlage öffnen |
 | T | Zum Mauszeiger teleportieren |
 
-`?start=world` in der Adresse startet direkt in der Testwelt (neues Spiel).
+`?start=world` in der Adresse startet direkt auf der Insel (neues Spiel ohne Intro).
 In der Browser-Konsole ist der Spielzustand als `__state` erreichbar (z. B. `__state.giveCard('042')`).
 
 ## Tests

@@ -139,7 +139,7 @@ export class GameStateStore {
     this.clock = 8 * 60;
     this.day = 1;
     this.quests = new QuestLog();
-    this.visited = new Set();
+    this.visited = new Set(['taufeld']);
     this.quick = [null, null, null];
     this.lastWell = null;
     this.protectedCards = new Set();

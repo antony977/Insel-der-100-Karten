@@ -133,7 +133,7 @@ export class HudScene extends BaseScene {
     this.activeIcons = [0, 1, 2].map((i) => this.add.image(152 + i * 12, 10, 'ability-icons', 9).setOrigin(0, 0).setScale(0.625).setVisible(false));
     this.buildWheel();
     this.vignette = this.add.graphics().setDepth(-1);
-    this.banner = addText(this, GAME_W / 2, 58, '', { font: 'px-o', ox: 0.5, color: PAL.cream, scale: 2 }).setAlpha(0).setDepth(30);
+    this.banner = addText(this, GAME_W / 2, 96, '', { font: 'px-o', ox: 0.5, color: PAL.cream, scale: 2 }).setAlpha(0).setDepth(30);
     this.arrow = this.add.triangle(0, 0, 0, -6, 5, 4, -5, 4, PAL.gold).setStrokeStyle(1, PAL.ink).setVisible(false).setDepth(20);
 
     // --- Sammelfortschritt (oben Mitte) ---
@@ -187,7 +187,7 @@ export class HudScene extends BaseScene {
     this.buildMessageBox();
 
     const onBanner = (t: string) => {
-      this.banner.setText(t).setAlpha(0).setY(64);
+      this.banner.setText(t).setAlpha(0).setY(102);
       this.bannerT = 2.6;
     };
     this.game.events.on('hud-banner', onBanner);
@@ -454,7 +454,7 @@ export class HudScene extends BaseScene {
     this.bannerT -= dt;
     const t = 2.6 - this.bannerT;
     const a = t < 0.3 ? t / 0.3 : this.bannerT < 0.5 ? this.bannerT / 0.5 : 1;
-    this.banner.setAlpha(Math.max(0, a)).setY(64 - Math.min(1, t / 0.3) * 6);
+    this.banner.setAlpha(Math.max(0, a)).setY(102 - Math.min(1, t / 0.3) * 6);
   }
 
   /** Leuchtspur: Pfeil zur nächsten herumliegenden Karte */
