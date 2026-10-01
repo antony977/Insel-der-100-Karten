@@ -5,6 +5,8 @@ import { Menu } from '../ui/Menu';
 import { Input, type InputSource } from '../input/InputManager';
 import { PAL } from '../gfx/palette';
 import { GAME_H, GAME_W, VERSION } from '../config';
+import { SaveSystem } from '../systems/SaveSystem';
+import { openDialog } from './DialogScene';
 
 interface FloatCard {
   s: Phaser.GameObjects.Image;
@@ -52,9 +54,11 @@ export class TitleScene extends BaseScene {
     this.logo = this.add.container(GAME_W / 2, 52, [small, big]);
 
     // Menü
-    addPanel(this, GAME_W / 2 - 74, 186, 148, 62);
+    addPanel(this, GAME_W / 2 - 74, 176, 148, 80);
     const items = [
-      { label: 'Spiel starten', onSelect: () => this.startGame() },
+      { label: 'Fortsetzen', onSelect: () => this.continueGame(), disabled: () => !SaveSystem.info('auto') },
+      { label: 'Neues Spiel', onSelect: () => this.newGame() },
+      { label: 'Laden', onSelect: () => this.openSlots(), disabled: () => !SaveSystem.hasAny() },
       { label: 'Einstellungen', onSelect: () => this.openSettings() },
       {
         label: () => (this.scale.isFullscreen ? 'Vollbild beenden' : 'Vollbild'),
@@ -62,23 +66,48 @@ export class TitleScene extends BaseScene {
         disabled: () => !this.scale.fullscreen.available,
       },
     ];
-    this.menu = new Menu(this, GAME_W / 2 - 62, 193, 124, items, { rowH: 16 });
+    this.menu = new Menu(this, GAME_W / 2 - 62, 181, 124, items, { rowH: 14 });
+    if (!SaveSystem.info('auto')) this.menu.select(1);
 
-    addText(this, 4, GAME_H - 13, `v${VERSION} · Meilenstein 1`, { font: 'px-o', color: PAL.silver });
+    addText(this, 4, GAME_H - 13, `v${VERSION} · Meilenstein 2`, { font: 'px-o', color: PAL.silver });
     this.sourceText = addText(this, GAME_W - 4, GAME_H - 13, '', { font: 'px-o', ox: 1, color: PAL.silver });
     const updateSource = (s: InputSource) => this.sourceText.setText(`Eingabe: ${SOURCE_LABEL[s]}`);
     updateSource(Input.source);
     const off = Input.onSourceChange(updateSource);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, off);
-    this.events.on(Phaser.Scenes.Events.RESUME, () => Input.setContext('menu'));
+    this.events.on(Phaser.Scenes.Events.RESUME, () => {
+      Input.setContext('menu');
+      this.menu.refresh();
+    });
 
     this.cameras.main.fadeIn(300, 13, 10, 20);
   }
 
-  private startGame(): void {
+  private startGame(cont: boolean): void {
     this.menu.enabled = false;
     this.cameras.main.fadeOut(260, 13, 10, 20);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('World'));
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('World', { continue: cont }));
+  }
+
+  private continueGame(): void {
+    if (SaveSystem.load('auto')) this.startGame(true);
+  }
+
+  private newGame(): void {
+    if (!SaveSystem.info('auto')) {
+      this.startGame(false);
+      return;
+    }
+    openDialog(this, {
+      title: 'Neues Spiel',
+      text: 'Ein neues Spiel überschreibt den automatischen Spielstand. Manuelle Speicherplätze bleiben erhalten.',
+      options: [{ label: 'Neues Spiel beginnen', action: () => this.startGame(false) }, { label: 'Abbrechen' }],
+    });
+  }
+
+  private openSlots(): void {
+    this.scene.pause();
+    this.scene.launch('Slots', { mode: 'load', from: 'Title' });
   }
 
   private openSettings(): void {

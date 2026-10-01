@@ -22,6 +22,9 @@ die echte Welt mitnehmen – und danach mit New Game+ weiterspielen.
 | Limit | Maximale Anzahl Exemplare einer Karte auf der ganzen Insel (inkl. KI-Rivalen). Ist das Limit erreicht, gibt es die Karte nur noch durch Handel, Raub oder Tausch. Verwandelte (entfesselte) Karten existieren nicht mehr als Karte und geben ihr Limit frei. |
 | „Entfessle!" | Verwandelt eine Karte in ihren echten Gegenstand (Heiltrank, Schlüssel, Ausrüstung …). |
 | 60-Sekunden-Regel | Eine Karte ausserhalb des Buchs (fallengelassen, gerade erbeutet, in der Hand) verwandelt sich nach 60 s automatisch und dauerhaft in ihren Gegenstand. |
+| Hand | Neue Karten landen zuerst in der Hand (max. 10, mit sichtbarem 60-s-Zähler im HUD). Ist die Hand voll, fällt die Karte auf den Boden. Herausnehmen aus dem Buch startet den Zähler neu. |
+| Buch offen | Solange das Buch offen ist, pausiert die Welt (auch die Zähler) – Komfort für Touch-Bedienung. |
+| Zauber | Zauberkarten passen nur in freie Slots; „Wirken" kommt mit dem Kampfsystem (Meilenstein 4). |
 | Tod | Geld und alle Karten der freien Slots gehen verloren, Erwachen am letzten Stadtbrunnen. Sammelseiten bleiben. |
 
 ### Rang-Farben (immer zusätzlich mit Buchstaben und Form – farbenblind-freundlich)

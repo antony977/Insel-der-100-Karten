@@ -11,6 +11,10 @@ export interface WorldObject {
   y: number;
   /** optionaler Text (z. B. Schild) */
   text?: string;
+  /** Anzeige-Frame (z. B. offene Truhe) */
+  frame?: number;
+  /** eindeutiger Schlüssel für Spielstand-Flags (z. B. Truhen) */
+  tag?: string;
 }
 
 export interface Box {
@@ -98,10 +102,10 @@ export class WorldMap {
     return d ? DECOR_NAMES[d - 1] : null;
   }
 
-  addObject(type: ObjectTypeId, x: number, y: number, text?: string): number {
+  addObject(type: ObjectTypeId, x: number, y: number, text?: string, tag?: string): number {
     const def = OBJECT_TYPES[type] as ObjectType;
     const idx = this.objects.length;
-    this.objects.push({ type, def, x, y, text });
+    this.objects.push({ type, def, x, y, text, tag });
     const ck = this.chunkIndexAt(x, y);
     if (ck >= 0) this.chunkObjects[ck].push(idx);
     if (def.box) {

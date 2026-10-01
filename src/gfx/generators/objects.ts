@@ -273,6 +273,34 @@ export function crate(): Raster {
   return withShadow(b, 7.5, 13, 6, 1.5);
 }
 
+/** Schatztruhe 16×16, 2 Frames (zu, offen) */
+export function chest(): Raster {
+  const frames: Raster[] = [];
+  for (let f = 0; f < 2; f++) {
+    const b = new Raster(16, 16);
+    // Korpus
+    shadedRect(b, 2, 8, 12, 6, RAMPS.wood);
+    hline(b, 2, 13, 10, PAL.bark);
+    if (f === 0) {
+      // Deckel zu
+      shadedRect(b, 2, 4, 12, 5, [PAL.bark, PAL.wood, PAL.tan, PAL.skinShade]);
+      hline(b, 3, 12, 4, PAL.skinShade);
+    } else {
+      // Deckel offen + Leuchten
+      shadedRect(b, 2, 1, 12, 3, [PAL.bark, PAL.wood, PAL.tan, PAL.skinShade]);
+      for (let x = 3; x < 13; x++) b.set(x, 7, x % 2 ? PAL.gold : PAL.cream);
+    }
+    // Beschläge
+    for (const x of [4, 11]) vline(b, x, f === 0 ? 4 : 8, 13, PAL.gold);
+    b.set(7, f === 0 ? 8 : 9, PAL.gold);
+    b.set(8, f === 0 ? 8 : 9, PAL.gold);
+    b.set(7, f === 0 ? 9 : 10, PAL.orange);
+    b.set(8, f === 0 ? 9 : 10, PAL.orange);
+    frames.push(withShadow(b, 8, 14, 7, 1.5));
+  }
+  return strip(frames);
+}
+
 /** Haus 64×62, Fusspunkt (32, 60). Fachwerk mit rotem Ziegeldach. */
 export function house(roof: Ramp = RAMPS.red, wall: Ramp = [PAL.mist, PAL.silver, PAL.white, PAL.white]): Raster {
   const b = new Raster(64, 62);

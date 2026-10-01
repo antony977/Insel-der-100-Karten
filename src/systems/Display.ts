@@ -146,6 +146,12 @@ class DisplayManager {
     canvas.style.width = `${layout.cssWidth}px`;
     canvas.style.height = `${layout.cssHeight}px`;
     game.scale.updateBounds();
+    // Phaser aktualisiert displayScale nur in refresh() – nach eigener CSS-Grösse selbst setzen,
+    // sonst stimmen Zeiger-Koordinaten nicht, wenn Canvas-Pixel ≠ CSS-Pixel (z. B. iPhone, dpr 3).
+    const b = game.scale.canvasBounds;
+    if (b.width > 0 && b.height > 0) {
+      game.scale.displayScale.set(game.scale.baseSize.width / b.width, game.scale.baseSize.height / b.height);
+    }
     if (r !== this.renderScale) {
       this.renderScale = r;
       for (const l of this.listeners) l(r);

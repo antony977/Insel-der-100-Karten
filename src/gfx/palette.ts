@@ -91,6 +91,11 @@ export const RAMPS = {
   white: [PAL.mist, PAL.silver, PAL.white, PAL.white],
   sand: [PAL.tan, PAL.sandShade, PAL.sand, PAL.sandLight],
   dark: [PAL.ink, PAL.ink, PAL.night, PAL.shadow],
+  orange: [PAL.wine, PAL.rust, PAL.orange, PAL.gold],
+  paper: [PAL.sandShade, PAL.sand, PAL.sandLight, PAL.white],
+  ice: [PAL.teal, PAL.cyan, PAL.ice, PAL.white],
+  sky: [PAL.blue, PAL.sky, PAL.skyLight, PAL.white],
+  ink: [PAL.ink, PAL.night, PAL.plum, PAL.purple],
 } as const satisfies Record<string, Ramp>;
 
 export type RampName = keyof typeof RAMPS;

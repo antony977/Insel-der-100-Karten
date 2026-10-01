@@ -81,8 +81,8 @@ export function buildTestMap(seed = 7): WorldMap {
     const t = m.getTerrain(x, y);
     return t === T.GRASS || t === T.FOREST || t === T.SAND;
   };
-  const place = (type: ObjectTypeId, cx: number, cy: number, w = 1, h = 1, text?: string) => {
-    m.addObject(type, cx * TILE + TILE / 2, cy * TILE + TILE - 2, text);
+  const place = (type: ObjectTypeId, cx: number, cy: number, w = 1, h = 1, text?: string, tag?: string) => {
+    m.addObject(type, cx * TILE + TILE / 2, cy * TILE + TILE - 2, text, tag);
     mark(cx - Math.floor((w - 1) / 2), cy - h + 1, w, h);
   };
   // Wege und Wasser belegen
@@ -130,6 +130,14 @@ export function buildTestMap(seed = 7): WorldMap {
     place('bush', gx0, y);
     place('bush', gx1, y);
   }
+
+  // Schatztruhen (Inhalt: data/treasures.ts)
+  place('chest', 34, 20, 1, 1, undefined, 'testwiese:truhe-haus');
+  place('chest', 49, 31, 1, 1, undefined, 'testwiese:truhe-garten');
+  place('chest', 16, 14, 1, 1, undefined, 'testwiese:truhe-wald');
+  mark(15, 13, 3, 3);
+  place('chest', 55, 27, 1, 1, undefined, 'testwiese:truhe-see');
+  mark(54, 26, 3, 3);
 
   // Randbäume (Insel-Begrenzung)
   for (let y = 0; y < H; y++) {

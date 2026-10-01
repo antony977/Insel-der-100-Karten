@@ -40,6 +40,7 @@ export const OBJECT_TYPES = {
     light: { radius: 64, color: 0xf08a24, y: -6 },
     interact: 'campfire',
   },
+  chest: { texture: 'chest', footX: 8, footY: 14, box: [-6, -5, 12, 5], interact: 'chest' },
   barrel: { texture: 'barrel', footX: 6, footY: 15, box: [-5, -5, 10, 5] },
   crate: { texture: 'crate', footX: 7, footY: 13, box: [-6, -6, 12, 6] },
   house: { texture: 'house', footX: 32, footY: 60, box: [-27, -28, 54, 28], interact: 'house' },

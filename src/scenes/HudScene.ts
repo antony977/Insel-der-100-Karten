@@ -10,6 +10,9 @@ import { keyLabel } from '../input/Actions';
 import { charFrame } from '../gfx/generators/characters';
 import { wrapText } from '../gfx/font/PixelFont';
 import type { WorldMap } from '../world/WorldMap';
+import { Game } from '../systems/GameState';
+import { cardIndex } from '../data/cards';
+import { OUTSIDE_SECONDS } from '../systems/cards/Book';
 
 export const HUD_EVENTS = {
   toast: 'hud-toast',
@@ -30,6 +33,7 @@ interface Toast {
 }
 
 const MINIMAP_W = 64;
+const HAND_SHOWN = 6;
 const MINIMAP_H = 44;
 
 /**
@@ -56,6 +60,11 @@ export class HudScene extends BaseScene {
   private msgFull = '';
   private msgShown = 0;
   private msgOpenedAt = 0;
+  private msgQueue: HudMessage[] = [];
+  private handIcons: { icon: Phaser.GameObjects.Image; bar: Phaser.GameObjects.Rectangle; bg: Phaser.GameObjects.Rectangle; text: Phaser.GameObjects.BitmapText }[] = [];
+  private handMore!: Phaser.GameObjects.BitmapText;
+  private handPanel!: Phaser.GameObjects.NineSlice;
+  private handLabel!: Phaser.GameObjects.BitmapText;
   private msgMore!: Phaser.GameObjects.BitmapText;
   private showDebug = false;
   private pointerTapped = false;
@@ -104,6 +113,24 @@ export class HudScene extends BaseScene {
       c.add([frame, num]);
       this.slots.push(c);
     }
+
+    // --- Karten in der Hand (unten Mitte) ---
+    this.handIcons = [];
+    this.msgQueue = [];
+    this.handPanel = addPanel(this, 0, GAME_H - 42, 10, 38, 'ui-frame-gold').setVisible(false);
+    this.handLabel = addText(this, 0, GAME_H - 39, 'Hand', { font: 'px-o', color: PAL.gold }).setVisible(false);
+    for (let i = 0; i < HAND_SHOWN; i++) {
+      const bg = this.add.rectangle(0, GAME_H - 28, 18, 3, PAL.ink).setOrigin(0, 0).setVisible(false);
+      const icon = this.add.image(0, GAME_H - 30, 'card-icons', 0).setOrigin(0, 1).setVisible(false);
+      const bar = this.add.rectangle(0, GAME_H - 27, 16, 1, PAL.lime).setOrigin(0, 0).setVisible(false);
+      const text = addText(this, 0, GAME_H - 24, '', { font: 'px-o', ox: 0.5, color: PAL.white }).setVisible(false);
+      this.handIcons.push({ icon, bar, bg, text });
+    }
+    this.handMore = addText(this, 0, GAME_H - 36, '', { font: 'px-o', color: PAL.gold }).setVisible(false);
+    this.handPanel.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+      const w = this.scene.get('World') as unknown as { openBook?: (tab?: string) => void };
+      w.openBook?.('hand');
+    });
 
     // --- Hinweise / FPS / Debug ---
     this.hint = addText(this, 6, GAME_H - 14, '', { font: 'px-o', color: PAL.silver });
@@ -168,6 +195,10 @@ export class HudScene extends BaseScene {
   }
 
   private showMessage(m: HudMessage): void {
+    if (this.msgBox.visible) {
+      this.msgQueue.push(m);
+      return;
+    }
     this.msgFull = wrapText(m.text, 360).join('\n');
     this.msgShown = 0;
     this.msgName.setText(m.name);
@@ -182,8 +213,16 @@ export class HudScene extends BaseScene {
   }
 
   private closeMessage(): void {
+    const next = this.msgQueue.shift();
+    if (next) {
+      this.msgBox.setVisible(false);
+      this.showMessage(next);
+      return;
+    }
     this.msgBox.setVisible(false);
     this.registry.set('messageOpen', false);
+    // Phaser aktualisiert obere Szenen zuerst: denselben Tastendruck nicht an die Welt weitergeben
+    this.registry.set('messageClosedFrame', this.game.loop.frame);
     Input.setContext('gameplay');
   }
 
@@ -256,7 +295,7 @@ export class HudScene extends BaseScene {
     // Steuerungshinweis nach einigen Sekunden ausblenden
     this.hintT += dt;
     const hintAlpha = this.hintT < 10 ? 1 : Math.max(0, 1 - (this.hintT - 10));
-    this.hint.setAlpha(this.msgBox.visible ? 0 : hintAlpha);
+    this.hint.setAlpha(this.msgBox.visible || Game.book.hand.length > 0 ? 0 : hintAlpha);
 
     // Meldung mit Tippeffekt
     if (this.msgBox.visible) {
@@ -314,9 +353,58 @@ export class HudScene extends BaseScene {
       this.showDebug = !this.showDebug;
       this.debugText.setVisible(this.showDebug);
     }
-    this.lpFill.width = 84;
-    this.auraFill.width = 84;
-    this.money.setText('0');
-    this.progress.setText('0/100');
+    this.updateStats();
+    this.updateHand(time);
+  }
+
+  private updateStats(): void {
+    const inv = Game.inv;
+    const st = inv.stats();
+    this.lpFill.width = Math.max(0, Math.round((84 * inv.lp) / st.lp));
+    this.auraFill.width = Math.max(0, Math.round((84 * inv.aura) / st.aura));
+    const money = String(inv.money);
+    if (this.money.text !== money) this.money.setText(money);
+    const prog = `${Game.book.collectedCount()}/100`;
+    if (this.progress.text !== prog) this.progress.setText(prog);
+  }
+
+  /** Handkarten mit Countdown – erinnern daran, Karten ins Buch zu legen. */
+  private updateHand(time: number): void {
+    const hand = Game.book.hand;
+    const n = Math.min(HAND_SHOWN, hand.length);
+    const show = n > 0 && !this.msgBox.visible;
+    const slotW = 22;
+    const w = 36 + n * slotW + (hand.length > HAND_SHOWN ? 16 : 0);
+    const x0 = Math.round(GAME_W / 2 - w / 2);
+    this.handPanel.setVisible(show);
+    this.handLabel.setVisible(show);
+    if (show) {
+      this.handPanel.setSize(w, 38).setX(x0);
+      this.handLabel.setX(x0 + 6);
+    }
+    for (let i = 0; i < HAND_SHOWN; i++) {
+      const h = this.handIcons[i];
+      const vis = show && i < n;
+      h.icon.setVisible(vis);
+      h.bar.setVisible(vis);
+      h.bg.setVisible(vis);
+      h.text.setVisible(vis);
+      if (!vis) continue;
+      const c = hand[i];
+      const x = x0 + 34 + i * slotW;
+      const id = Game.registry.idOf(c.uid);
+      h.icon.setTexture('card-icons', cardIndex(id)).setPosition(x, GAME_H - 26);
+      const frac = Math.max(0, c.timeLeft / OUTSIDE_SECONDS);
+      h.bg.setPosition(x, GAME_H - 25);
+      h.bar.setPosition(x + 1, GAME_H - 24);
+      h.bar.width = Math.max(1, Math.round(16 * frac));
+      h.bar.fillColor = c.timeLeft < 10 ? PAL.red : c.timeLeft < 25 ? PAL.orange : PAL.lime;
+      h.text.setPosition(x + 9, GAME_H - 20).setText(String(Math.ceil(c.timeLeft)));
+      const urgent = c.timeLeft < 10 && Math.floor(time / 180) % 2 === 0;
+      h.icon.setAlpha(urgent ? 0.4 : 1);
+      h.text.setTint(c.timeLeft < 10 ? PAL.coral : PAL.white);
+    }
+    this.handMore.setVisible(show && hand.length > HAND_SHOWN);
+    if (hand.length > HAND_SHOWN) this.handMore.setText(`+${hand.length - HAND_SHOWN}`).setPosition(x0 + 34 + n * slotW, GAME_H - 30);
   }
 }

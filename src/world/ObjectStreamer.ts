@@ -76,7 +76,7 @@ export class ObjectStreamer {
     const o = this.map.objects[i];
     let s = this.pool.pop();
     if (!s) s = this.scene.add.sprite(0, 0, o.def.texture);
-    s.setTexture(o.def.texture, 0);
+    s.setTexture(o.def.texture, o.frame ?? 0);
     s.setOrigin(o.def.footX / s.width, o.def.footY / s.height);
     s.setPosition(o.x, o.y);
     s.setDepth(o.y);
@@ -92,6 +92,13 @@ export class ObjectStreamer {
     s.setVisible(false).setActive(false);
     this.active.delete(i);
     this.pool.push(s);
+  }
+
+  /** Aktualisiert die Darstellung eines Objekts (z. B. Truhe geöffnet). */
+  refresh(i: number): void {
+    const s = this.active.get(i);
+    const o = this.map.objects[i];
+    if (s && !o.def.anim) s.setFrame(o.frame ?? 0);
   }
 
   destroy(): void {

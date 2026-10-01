@@ -5,6 +5,7 @@ import { Menu } from '../ui/Menu';
 import { Input } from '../input/InputManager';
 import { PAL } from '../gfx/palette';
 import { GAME_H, GAME_W } from '../config';
+import { SaveSystem } from '../systems/SaveSystem';
 
 export class PauseScene extends BaseScene {
   private menu!: Menu;
@@ -20,7 +21,7 @@ export class PauseScene extends BaseScene {
     this.justOpened = true;
     this.add.rectangle(0, 0, GAME_W, GAME_H, PAL.ink, 0.6).setOrigin(0, 0);
     const w = 180;
-    const h = 108;
+    const h = 140;
     const x = (GAME_W - w) / 2;
     const y = (GAME_H - h) / 2;
     addPanel(this, x, y, w, h, 'ui-frame');
@@ -32,6 +33,8 @@ export class PauseScene extends BaseScene {
       w - 44,
       [
         { label: 'Weiterspielen', onSelect: () => this.resume() },
+        { label: 'Speichern', onSelect: () => this.slots('save') },
+        { label: 'Laden', onSelect: () => this.slots('load') },
         { label: 'Einstellungen', onSelect: () => this.settings() },
         { label: 'Zum Titelbild', onSelect: () => this.toTitle() },
       ],
@@ -49,12 +52,18 @@ export class PauseScene extends BaseScene {
     this.scene.resume('World');
   }
 
+  private slots(mode: 'save' | 'load'): void {
+    this.scene.pause();
+    this.scene.launch('Slots', { mode, from: 'Pause' });
+  }
+
   private settings(): void {
     this.scene.pause();
     this.scene.launch('Settings', { from: 'Pause' });
   }
 
   private toTitle(): void {
+    SaveSystem.autosave();
     this.scene.stop('Hud');
     this.scene.stop('World');
     this.scene.stop();

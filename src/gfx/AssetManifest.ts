@@ -6,6 +6,8 @@ import * as ui from './generators/ui';
 import { generateWater } from './generators/terrainTiles';
 import { RAMPS, PAL } from './palette';
 import * as title from './generators/title';
+import * as cards from './generators/cardArt';
+import { RANKS } from '../data/cardTypes';
 
 /**
  * Verzeichnis aller Grafiken. Jede Grafik wird per Code erzeugt – kann aber jederzeit durch
@@ -84,6 +86,16 @@ export const ASSETS: AssetDef[] = [
   { key: 'ui-icons', frame: { w: 9, h: 9 }, generate: () => ui.hudIcons(), layout: 'Herz, Aura, Münze, Karte, Buch, Stern (je 9×9)' },
   { key: 'ui-crosshair', generate: () => ui.crosshair(), layout: '11×11' },
   { key: 'title-bg', generate: () => title.titleBackground(), layout: '480×270 Titelhintergrund' },
+  { key: 'cards', frame: { w: cards.CARD_W, h: cards.CARD_H }, generate: () => cards.cardsAtlas(), layout: 'Alle Karten 30×40 (Reihenfolge wie data/cards.ts)' },
+  { key: 'cards-sil', frame: { w: cards.CARD_W, h: cards.CARD_H }, generate: () => cards.silhouetteAtlas(), layout: 'Silhouetten 000–099, 30×40' },
+  { key: 'card-extras', frame: { w: cards.CARD_W, h: cards.CARD_H }, generate: () => cards.cardExtras(), layout: 'leer, Rückseite, Auswahl, Ablageziel (30×40)' },
+  { key: 'card-icons', frame: { w: 16, h: 16 }, generate: () => cards.iconAtlas(), layout: 'Kartensymbole 16×16' },
+  { key: 'ground-card', frame: { w: 12, h: 15 }, generate: () => cards.groundCards(RANKS), layout: 'Bodenkarte je Rang 12×15' },
+  { key: 'book-open', generate: () => cards.bookOpen(), layout: `Aufgeschlagenes Buch ${cards.BOOK_W}×${cards.BOOK_H}` },
+  { key: 'book-closed', generate: () => cards.bookClosed(), layout: 'Geschlossenes Buch 56×72' },
+  { key: 'book-page', generate: () => cards.bookPage(), layout: 'Seite für Umblätter-Animation' },
+  { key: 'book-tabs', frame: { w: 52, h: 16 }, generate: () => cards.bookTabs(), layout: 'Lesezeichen 52×16 (gold, türkis, holz, rot, violett)' },
+  { key: 'chest', frame: { w: 16, h: 16 }, generate: () => obj.chest(), layout: 'Truhe zu/offen 16×16' },
   { key: 'title-island', generate: () => title.titleIsland(), layout: '220×70 Insel-Silhouette' },
   { key: 'mini-cards', frame: { w: 14, h: 19 }, generate: () => title.miniCards(), layout: '5 Frames 14×19' },
 ];

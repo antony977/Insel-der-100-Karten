@@ -8,6 +8,11 @@ import { HudScene } from './scenes/HudScene';
 import { PauseScene } from './scenes/PauseScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { KeysScene } from './scenes/KeysScene';
+import { BookScene } from './scenes/BookScene';
+import { DialogScene } from './scenes/DialogScene';
+import { SlotsScene } from './scenes/SlotsScene';
+import { SaveSystem } from './systems/SaveSystem';
+import { Game } from './systems/GameState';
 import { Display } from './systems/Display';
 import { Input } from './input/InputManager';
 import { TouchControls } from './input/TouchControls';
@@ -49,7 +54,7 @@ const game = new Phaser.Game({
     antialiasGL: false,
     pixelArt: true,
   },
-  scene: [BootScene, TitleScene, WorldScene, HudScene, PauseScene, SettingsScene, KeysScene],
+  scene: [BootScene, TitleScene, WorldScene, HudScene, BookScene, PauseScene, SettingsScene, KeysScene, SlotsScene, DialogScene],
   callbacks: {
     postBoot: (g) => {
       g.registry.set('cursorCss', cursorCss);
@@ -61,6 +66,15 @@ const game = new Phaser.Game({
 });
 
 Input.attach();
+
+// Beim Verlassen der Seite (App-Wechsel, Tab schliessen) automatisch speichern
+const saveIfPlaying = () => {
+  if (game.registry.get('worldActive')) SaveSystem.autosave();
+};
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) saveIfPlaying();
+});
+window.addEventListener('pagehide', saveIfPlaying);
 game.events.on(Phaser.Core.Events.PRE_STEP, (time: number) => Input.update(time));
 
 // Service Worker (offline spielbar) – nur im Produktions-Build
@@ -70,3 +84,4 @@ if (import.meta.env.PROD) {
 
 // Für Tests und Debugging
 (window as unknown as { __game: Phaser.Game }).__game = game;
+(window as unknown as { __state: typeof Game }).__state = Game;

@@ -5,7 +5,8 @@ Auf einer geheimnisvollen Insel ist alles eine Karte – Ziel ist es, alle 100 S
 ins eigene Kartenbuch zu bekommen. Alle Grafiken, Schriften und (später) Sounds werden per Code
 erzeugt. Das Spieldesign steht in [DESIGN.md](DESIGN.md).
 
-**Stand:** Meilenstein 1 – Projekt-Setup, Skalierung, Eingabe-System, Spielfigur auf einer Testkarte.
+**Stand:** Meilenstein 2 – Kartenbuch mit allen Regeln (100 Sammel-Slots, 45 freie Slots, Ränge,
+Limits, „Entfessle!", 60-Sekunden-Regel), Truhen, Wunschbrunnen und Speichersystem.
 
 ## Starten
 
@@ -58,6 +59,43 @@ Der Workflow `.github/workflows/deploy.yml` baut das Spiel und veröffentlicht e
 - Die Eingabe wechselt automatisch und live zwischen Tastatur, Maus, Touch und Gamepad.
 - Tastenbelegung, Touch-Grösse/-Deckkraft, Linkshänder-Modus usw. unter **Einstellungen**.
 
+### Im Kartenbuch
+
+| Aktion | Tastatur / Gamepad | Maus / Touch |
+|---|---|---|
+| Reiter wechseln (Sammlung, Frei, Hand, Beutel, Status) | 1 / 2, Tab, Q | Reiter antippen |
+| Karte wählen | Pfeiltasten / Steuerkreuz | antippen |
+| Aktion (Einordnen, Entfessle!, Verschieben …) | Bestätigen → Knopf wählen | Knopf antippen |
+| Karte verschieben | „Verschieben", dann Ziel-Slot | ziehen und loslassen (auch auf einen Reiter) |
+| Umblättern | links/rechts am Seitenrand | Pfeile, Mausrad, Karte an den Rand ziehen |
+| Schliessen | B, Esc | × oder Buch-Knopf |
+
+## Kartenbuch-Regeln (Kurzfassung)
+
+- **Sammelseiten 000–099:** Jeder Slot nimmt nur seine eigene Karte. Unbekannte Karten zeigen Nummer,
+  Silhouette und einen Hinweis, wo man sie findet. Nur Karten hier zählen für den Fortschritt (x/100).
+- **Freie Slots (45):** Zauber, Doppelte und alles, was man mitnehmen will.
+- **Hand (max. 10):** Neue Karten landen zuerst in der Hand. Das HUD zeigt den 60-Sekunden-Zähler –
+  läuft er ab, verwandelt sich die Karte **dauerhaft** in ihren Gegenstand. Auf den Boden gefallene
+  Karten blinken in den letzten 10 Sekunden.
+- **Limit:** Jede Karte gibt es auf der Insel nur begrenzt oft. Ist das Limit erreicht, gibt es keine neue.
+- **„Entfessle!":** verwandelt eine Karte in den echten Gegenstand (Trank, Ausrüstung, Werkzeug …).
+  Gegenstände liegen im **Beutel**; Ausrüstung verändert die Werte im **Status**.
+- **Zauberkarten** passen nur in freie Slots; „Wirken" folgt mit dem Kampfsystem (Meilenstein 4).
+- Solange das Buch offen ist, pausiert die Welt.
+
+### Zum Ausprobieren auf der Testwiese
+
+- **Lumi** (neben dem Startpunkt) ansprechen → 3 Startkarten.
+- **4 Truhen** sind versteckt (beim Haus, im Garten, im Wald, am See).
+- **Wunschbrunnen:** 10 Münzen einwerfen → zufällige Karte (seltene Ränge sind selten).
+
+## Speichern
+
+- **Autosave** alle 30 Sekunden, beim Schliessen des Buchs und beim Verlassen/Wechseln der App.
+- **3 Speicherplätze** über Pause → Speichern / Laden (und im Titelbild „Laden").
+- **Export/Import** als JSON-Datei im Lade-/Speichermenü (Sicherung oder Umzug auf ein anderes Gerät).
+
 ## Debug-Modus (nur `npm run dev`)
 
 | Taste | Funktion |
@@ -67,10 +105,13 @@ Der Workflow `.github/workflows/deploy.yml` baut das Spiel und veröffentlicht e
 | F3 | Noclip |
 | F4 | Aura-Farbe wechseln |
 | F6 | Testtreffer (Rückstoss, Hit-Stop) |
+| F7 | Zufällige Karte in die Hand |
+| F8 | 10 zufällige Sammelkarten direkt ins Buch |
 | F9 | Alle generierten Grafiken als PNG-Vorlage öffnen |
 | T | Zum Mauszeiger teleportieren |
 
-`?start=world` in der Adresse startet direkt in der Testwelt.
+`?start=world` in der Adresse startet direkt in der Testwelt (neues Spiel).
+In der Browser-Konsole ist der Spielzustand als `__state` erreichbar (z. B. `__state.giveCard('042')`).
 
 ## Tests
 
@@ -84,12 +125,14 @@ npm run build     # Produktions-Build inkl. Service Worker
 
 ```
 src/
-  scenes/     Boot, Titel, Welt, HUD, Pause, Einstellungen, Tastenbelegung
-  systems/    Anzeige/Skalierung, Einstellungen, Speicher, Effekt-Pool
+  scenes/     Boot, Titel, Welt, HUD, Kartenbuch, Pause, Einstellungen, Tastenbelegung,
+              Speicherplätze, Dialog
+  systems/    Anzeige/Skalierung, Einstellungen, Spielzustand, Speichersystem, Effekt-Pool
+  systems/cards/  Karten-Register (Limits), Buch (Slots, Hand, 60-s-Regel), Inventar
   entities/   Spielfigur (später Monster, NPCs, Rivalen)
   input/      Aktionen, Eingabe-Manager (Tastatur/Maus/Gamepad), Touch-Overlay
-  world/      Kartendaten, Terrain, Tile-Streaming, Objekt-Streaming
-  data/       datengetriebene Inhalte (Karten, Weltobjekte, später Karten/Monster/Quests)
+  world/      Kartendaten, Terrain, Tile-Streaming, Objekt-Streaming, Boden-Karten
+  data/       datengetriebene Inhalte (100 Sammelkarten, 40 Zauber, Truhen, Weltobjekte, Testkarte)
   gfx/        Palette, Pixel-Schrift, Grafik-Generatoren, Asset-Loader
   ui/         Text, Rahmen, Menüs
   audio/      (Meilenstein 5)

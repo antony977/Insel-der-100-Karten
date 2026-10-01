@@ -1,7 +1,7 @@
 {
   "name": "insel-der-100-karten",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Insel der 100 Karten – ein 2D-Open-World-Pixel-RPG rund um ein magisches Kartenbuch.",
   "scripts": {
