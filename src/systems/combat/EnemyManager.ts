@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Sound } from '../../audio/AudioEngine';
 import { Enemy } from '../../entities/Enemy';
 import { MONSTER_BY_ID, type MonsterDef } from '../../data/monsters';
 import type { SpawnZone } from '../../world/WorldMap';
@@ -347,6 +348,7 @@ export class EnemyManager {
           if (b.includes('flee') && !b.includes('thief')) {
             this.setState(e, 'flee');
           } else {
+            if (!e.alerted) this.sfx('alert', e.x, 0.6, 0.1);
             e.alerted = true;
             this.alertPack(e);
             this.setState(e, 'chase');
@@ -720,6 +722,7 @@ export class EnemyManager {
     const base = Math.atan2(tgt.y - e.y, tgt.x - e.x);
     const n = r.count ?? 1;
     const spread = r.spread ?? 0;
+    this.sfx('shoot', e.x, 0.55, 0.12);
     for (let i = 0; i < n; i++) {
       const a = n === 1 ? base : spread >= 6 ? (i / n) * Math.PI * 2 : base - spread / 2 + (spread * i) / (n - 1);
       this.w.projectiles.spawn({
@@ -770,6 +773,11 @@ export class EnemyManager {
     return best;
   }
 
+  /** Effekt mit Stereo-Position relativ zum Spieler */
+  private sfx(name: string, x: number, vol = 1, vary = 0.06): void {
+    Sound.play(name, { vol, vary, pan: (x - this.w.player.x) / 220 });
+  }
+
   /** Schaden anwenden – mit allen Sonderregeln (nur von hinten, Aura-Sinn, Netz …) */
   damage(e: Enemy, hit: Hit, o: HitOpts): boolean {
     if (!e.active || e.state === 'dead' || e.team !== 'enemy') return false;
@@ -779,6 +787,7 @@ export class EnemyManager {
     const ty = e.y - e.size * 0.6;
     if (s.senseOnly && !this.w.player.senseActive) {
       this.w.numbers.spawn(tx, ty, '?', { color: PAL.mist, small: true });
+      this.sfx('swing', tx, 0.5);
       return false;
     }
     if (e.state === 'burrowed') {
@@ -793,6 +802,7 @@ export class EnemyManager {
         return true;
       }
       this.w.numbers.spawn(tx, ty, 'Entwischt!', { color: PAL.cream, small: true });
+      this.sfx('roll', tx, 0.7);
       this.setState(e, 'flee');
       return false;
     }
@@ -810,6 +820,7 @@ export class EnemyManager {
       const front = e.faceLeft ? fromLeft : !fromLeft;
       if (front) {
         this.w.numbers.spawn(tx, ty, 'Klonk!', { color: PAL.silver, small: true });
+        this.sfx('clank', tx);
         this.w.fx.spawn('impact', (e.x + o.fromX) / 2, ty, { scale: 0.5, tint: PAL.silver });
         const dx = e.x - o.fromX;
         const dl = Math.max(1, Math.abs(dx));
@@ -825,6 +836,7 @@ export class EnemyManager {
     e.alerted = true;
     this.alertPack(e);
     this.w.numbers.spawn(tx, ty, String(dmg), { crit: hit.crit, color: o.src === 'ally' ? PAL.pink : undefined });
+    this.sfx(hit.crit ? 'crit' : 'hit', tx, o.src === 'ally' ? 0.6 : 1);
     if (hit.crit) this.w.fx.spawn('crit', tx, ty, { depth: 150500 });
     this.w.fx.spawn('impact', tx + (Math.random() - 0.5) * 6, ty + 4, { scale: hit.crit ? 0.9 : 0.6, tint: hit.crit ? PAL.gold : undefined });
     // Rückstoss (schwere Monster weniger)
@@ -854,6 +866,7 @@ export class EnemyManager {
     const x = e.x;
     const y = e.y;
     this.w.fx.spawn('poof', x, y - e.size * 0.4, { scale: e.size / 16 });
+    this.sfx('enemyDie', x, 1, 0.1);
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2;
       this.w.fx.spawn('sparkle', x, y - e.size * 0.4, { vx: Math.cos(a) * 50, vy: Math.sin(a) * 40 - 20, tint: PAL.cream });
@@ -879,6 +892,7 @@ export class EnemyManager {
       this.w.fx.spawn('coin', x + (Math.random() - 0.5) * 10, y - 8, { vx: (Math.random() - 0.5) * 50, vy: -50 - Math.random() * 30 });
     }
     this.w.numbers.spawn(x + 8, y - 4, `+${money}`, { color: PAL.gold, small: true });
+    if (money > 0) this.w.scene.time.delayedCall(160, () => this.sfx('coin', x, 0.6, 0.04));
     Game.prog.addKill(d.id);
     Game.gainXp(d.xp);
     Game.events.emit('vitals-changed');

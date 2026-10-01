@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Sound } from '../audio/AudioEngine';
 import { BaseScene } from './BaseScene';
 import { addPanel, addText } from '../ui/Text';
 import { Input } from '../input/InputManager';
@@ -112,7 +113,9 @@ export class ChoiceScene extends BaseScene {
   private move(d: number): void {
     const n = this.data0.options.length;
     if (!n) return;
-    this.sel = Math.max(0, Math.min(n - 1, this.sel + d));
+    const next = Math.max(0, Math.min(n - 1, this.sel + d));
+    if (next !== this.sel) Sound.play('move');
+    this.sel = next;
     this.render();
   }
 
@@ -124,13 +127,18 @@ export class ChoiceScene extends BaseScene {
 
   private pick(): void {
     const o = this.data0.options[this.sel];
-    if (!o || o.disabled) return;
+    if (!o || o.disabled) {
+      Sound.play('error');
+      return;
+    }
+    Sound.play('select');
     this.close();
     const world = this.scene.get('World');
     world.time.delayedCall(20, () => this.data0.onPick(o.value));
   }
 
   private cancel(): void {
+    Sound.play('back');
     this.close();
     this.data0.onCancel?.();
   }

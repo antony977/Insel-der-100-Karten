@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Sound } from '../audio/AudioEngine';
 import { BaseScene } from './BaseScene';
 import { addPanel, addText } from '../ui/Text';
 import { Menu } from '../ui/Menu';
@@ -19,6 +20,8 @@ export class PauseScene extends BaseScene {
     this.setupCamera();
     Input.setContext('menu');
     this.justOpened = true;
+    Sound.duck('pause', true);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => Sound.duck('pause', false));
     this.add.rectangle(0, 0, GAME_W, GAME_H, PAL.ink, 0.6).setOrigin(0, 0);
     const w = 180;
     const h = 140;

@@ -33,7 +33,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: null,
-      includeAssets: ['icons/*.png', 'gfx/*'],
+      includeAssets: ['icons/*.png', 'gfx/*', 'audio/*'],
       manifest: {
         name: 'Insel der 100 Karten',
         short_name: '100 Karten',
@@ -53,7 +53,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,json,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,png,json,webmanifest,ogg,mp3,m4a,wav}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,

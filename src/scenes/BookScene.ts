@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Sound } from '../audio/AudioEngine';
 import { BaseScene } from './BaseScene';
 import { addPanel, addText } from '../ui/Text';
 import { Input } from '../input/InputManager';
@@ -201,6 +202,9 @@ export class BookScene extends BaseScene {
   // ------------------------------------------------------------ Animation
 
   private playOpen(): void {
+    Sound.play('bookOpen');
+    Sound.duck('book', true);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => Sound.duck('book', false));
     this.root.setVisible(false);
     const closed = this.add.image(GAME_W / 2, GAME_H / 2, 'book-closed').setScale(0.3).setDepth(40);
     const shout = addText(this, GAME_W / 2, GAME_H / 2 - 52, 'Aufgeschlagen!', { font: 'px-o', ox: 0.5, oy: 0.5, color: PAL.gold, scale: 2 })
@@ -243,6 +247,8 @@ export class BookScene extends BaseScene {
     if (this.closing) return;
     this.closing = true;
     this.busy = true;
+    Sound.play('bookClose');
+    Sound.duck('book', false);
     this.tweens.add({
       targets: this.root,
       scaleX: 0.02,
@@ -266,6 +272,7 @@ export class BookScene extends BaseScene {
     const next = Phaser.Math.Clamp(this.pages[this.tab] + dir, 0, max);
     if (next === this.pages[this.tab] || this.busy) return;
     this.busy = true;
+    Sound.play('page', { vary: 0.08 });
     const page = this.add.image(SPINE_X, PAGE_Y, 'book-page').setOrigin(dir > 0 ? 0 : 1, 0).setDepth(30);
     this.tweens.add({
       targets: page,
@@ -292,6 +299,7 @@ export class BookScene extends BaseScene {
 
   private switchTab(t: Tab): void {
     if (this.busy || this.tab === t) return;
+    Sound.play('page', { rate: 1.25 });
     this.tab = t;
     this.sel = 0;
     this.focus = 'grid';
@@ -732,6 +740,7 @@ export class BookScene extends BaseScene {
         const text = addText(this, x + w / 2, y + 3, b.label, { font: 'px-s', ox: 0.5, color: b.enabled ? (focused ? PAL.cream : PAL.white) : PAL.stone });
         panel.setInteractive({ useHandCursor: b.enabled }).on('pointerdown', () => {
           if (!b.enabled || this.busy) return;
+          Sound.play('select');
           b.run();
         });
         this.content.add([panel, text]);
@@ -865,6 +874,7 @@ export class BookScene extends BaseScene {
   }
 
   private startMove(uid: number): void {
+    Sound.play('select');
     this.moving = uid;
     this.focus = 'grid';
     this.render();
@@ -876,6 +886,7 @@ export class BookScene extends BaseScene {
     const slot = this.slotFor(i);
     if (uid === null || !slot) return this.render();
     const r = Game.book.move(uid, slot);
+    Sound.play(r === 'ok' ? 'place' : 'error');
     if (r !== 'ok') this.flash(MOVE_MESSAGES[r]);
     Game.events.emit('book-changed');
     this.render();
@@ -884,6 +895,7 @@ export class BookScene extends BaseScene {
   private doUnleash(uid: number): void {
     const c = Game.book.def(uid);
     const big = this.add.image(RIGHT_X + 8 + CARD_W, PAGE_Y + 6 + CARD_H, 'cards', cardIndex(c.id)).setScale(2).setDepth(45);
+    Sound.play('special');
     const shout = addText(this, RIGHT_X + PAGE_W / 2, PAGE_Y + 40, 'Entfessle!', { font: 'px-o', ox: 0.5, oy: 0.5, color: PAL.gold, scale: 2 }).setDepth(46);
     shout.setScale(0.5);
     this.busy = true;
@@ -1002,6 +1014,7 @@ export class BookScene extends BaseScene {
       if (i >= 0) r = Game.book.move(uid, this.slotFor(i)!);
       else if (t === 'hand') r = Game.book.takeOut(uid);
       else if (t === 'sammel' || t === 'frei') r = Game.book.file(uid);
+      Sound.play(r === 'ok' ? 'place' : 'error');
       if (r !== 'ok') this.flash(MOVE_MESSAGES[r as keyof typeof MOVE_MESSAGES]);
       Game.events.emit('book-changed');
       this.render();
@@ -1030,7 +1043,10 @@ export class BookScene extends BaseScene {
     if (this.focus === 'buttons') {
       if (Input.nav('left')) this.btnSel = Math.max(0, this.btnSel - 1);
       if (Input.nav('right')) this.btnSel = Math.min(this.buttons.length - 1, this.btnSel + 1);
-      if (Input.nav('left') || Input.nav('right')) this.render();
+      if (Input.nav('left') || Input.nav('right')) {
+        Sound.play('move');
+        this.render();
+      }
       if (Input.cancel() || Input.nav('up')) {
         this.focus = 'grid';
         this.render();
@@ -1038,6 +1054,7 @@ export class BookScene extends BaseScene {
         const b = this.buttons[this.btnSel];
         if (b?.enabled) {
           this.focus = 'grid';
+          Sound.play('select');
           b.run();
           this.render();
         }
@@ -1075,7 +1092,10 @@ export class BookScene extends BaseScene {
       }
       moved = true;
     }
-    if (moved) this.render();
+    if (moved) {
+      Sound.play('move');
+      this.render();
+    }
     if (Input.confirm()) {
       if (this.moving !== null) this.finishMove(this.sel);
       else if (this.buttons.some((b) => b.enabled)) {

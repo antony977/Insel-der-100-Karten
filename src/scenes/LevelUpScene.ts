@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Sound } from '../audio/AudioEngine';
 import { BaseScene } from './BaseScene';
 import { addText } from '../ui/Text';
 import { Input } from '../input/InputManager';
@@ -29,6 +30,7 @@ export class LevelUpScene extends BaseScene {
   create(): void {
     this.setupCamera();
     Input.setContext('menu');
+    Sound.play('fanfare');
     this.cards = [];
     const bg = this.add.rectangle(0, 0, GAME_W, GAME_H, PAL.ink, 0).setOrigin(0, 0);
     this.tweens.add({ targets: bg, fillAlpha: 0.72, duration: 200 });
@@ -106,6 +108,7 @@ export class LevelUpScene extends BaseScene {
   }
 
   private select(i: number): void {
+    if (i !== this.sel) Sound.play('move');
     this.sel = i;
     this.cards.forEach((c, k) => {
       this.tweens.killTweensOf(c);
@@ -120,6 +123,7 @@ export class LevelUpScene extends BaseScene {
     if (this.busy) return;
     this.busy = true;
     const c = this.offer[this.sel];
+    Sound.play('cardRare');
     Game.prog.pick(c);
     Game.syncBonus();
     const st = Game.inv.stats();

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Sound } from '../audio/AudioEngine';
 import { BaseScene } from './BaseScene';
 import { addPanel, addText } from '../ui/Text';
 import { Input } from '../input/InputManager';
@@ -203,6 +204,7 @@ export class ShopScene extends BaseScene {
     if (this.mode === m) return;
     if (m === 'sell' && !this.shop.buys) return;
     if (m === 'buy' && !this.shop.items.length && !this.shop.pack) return;
+    Sound.play('page');
     this.mode = m;
     this.sel = 0;
     this.scroll = 0;
@@ -225,6 +227,7 @@ export class ShopScene extends BaseScene {
       Game.registry.destroy(uid);
       Game.quick = Game.quick.map((q) => (q === uid ? null : q));
       Game.inv.money += r.price;
+      Sound.play('coin');
       Game.events.emit('book-changed');
       Game.events.emit('vitals-changed');
       this.flash(`${r.label} verkauft: +${r.price} Münzen`);
@@ -233,6 +236,7 @@ export class ShopScene extends BaseScene {
       return;
     }
     if (r.price > this.funds) {
+      Sound.play('error');
       this.flash(this.currency === 'chips' ? 'Nicht genug Chips.' : 'Nicht genug Münzen.');
       return;
     }
@@ -246,6 +250,7 @@ export class ShopScene extends BaseScene {
       return;
     }
     this.pay(r.price);
+    Sound.play('buy');
     Game.giveCard(c.id);
     this.flash(`${c.name} gekauft – liegt in deiner Hand!`);
     SaveSystem.autosave();
@@ -278,6 +283,7 @@ export class ShopScene extends BaseScene {
       return;
     }
     this.pay(price);
+    Sound.play('buy');
     this.busy = true;
     const layer = this.add.container(0, 0).setDepth(100);
     layer.add(this.add.rectangle(0, 0, GAME_W, GAME_H, PAL.ink, 0.8).setOrigin(0, 0));
@@ -327,11 +333,13 @@ export class ShopScene extends BaseScene {
 
   private move(d: number): void {
     if (!this.rows.length) return;
+    Sound.play('move');
     this.sel = (this.sel + d + this.rows.length) % this.rows.length;
     this.render();
   }
 
   private close(): void {
+    Sound.play('back');
     this.scene.stop();
     this.scene.resume('Hud');
     this.scene.resume('World');

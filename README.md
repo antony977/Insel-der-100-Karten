@@ -2,12 +2,13 @@
 
 Ein 2D-Open-World-RPG im Pixel-Art-Stil (Phaser 3 + TypeScript + Vite, PWA).
 Auf einer geheimnisvollen Insel ist alles eine Karte – Ziel ist es, alle 100 Sammelkarten
-ins eigene Kartenbuch zu bekommen. Alle Grafiken, Schriften und (später) Sounds werden per Code
+ins eigene Kartenbuch zu bekommen. Alle Grafiken, Schriften, Sounds und die Musik werden per Code
 erzeugt. Das Spieldesign steht in [DESIGN.md](DESIGN.md).
 
-**Stand:** Meilenstein 4 – die ganze Insel (13 Regionen, 7 Städte), Taufeld und Runenhall mit
-Figuren, Dialogen, Quests und Läden, alle 40 Zauber, Intro mit Affinitätswahl, Weltkarte.
-Dazu Kampf und Aura (M3), das Kartenbuch mit allen Regeln (M2) und das Speichersystem.
+**Stand:** Meilenstein 5 – Soundeffekte und Musik (eigener Synthesizer, je Region ein Stück,
+Lagerfeuer-Thema). Dazu die ganze Insel (13 Regionen, 7 Städte), Taufeld und Runenhall mit
+Figuren, Dialogen, Quests und Läden, alle 40 Zauber, Intro mit Affinitätswahl, Weltkarte (M4),
+Kampf und Aura (M3), das Kartenbuch mit allen Regeln (M2) und das Speichersystem.
 
 ## Starten
 
@@ -101,7 +102,7 @@ Der Workflow `.github/workflows/deploy.yml` baut das Spiel und veröffentlicht e
 - **Limit:** Jede Karte gibt es auf der Insel nur begrenzt oft. Ist das Limit erreicht, gibt es keine neue.
 - **„Entfessle!":** verwandelt eine Karte in den echten Gegenstand (Trank, Ausrüstung, Werkzeug …).
   Gegenstände liegen im **Beutel**; Ausrüstung verändert die Werte im **Status**.
-- **Zauberkarten** passen nur in freie Slots; „Wirken" folgt mit dem Kampfsystem (Meilenstein 4).
+- **Zauberkarten** passen nur in freie Slots und werden im Buch über „Wirken" eingesetzt (oder per Schnelltaste).
 - Solange das Buch offen ist, pausiert die Welt.
 
 ## Die Insel
@@ -132,6 +133,34 @@ Der Workflow `.github/workflows/deploy.yml` baut das Spiel und veröffentlicht e
   ein Wiesenflitzer im Südosten, Kieselkrebse am Fluss, Schlammkröten und eine Zangenkrabbe am See,
   Stachelschwalben im Osten und ein Tintenkobold beim Platz (klaut Münzen!).
 - **Wunschbrunnen:** 10 Münzen einwerfen → zufällige Karte (seltene Ränge sind selten).
+
+## Sound und Musik
+
+Alle Klänge entstehen im Code – es gibt keine Audiodateien:
+
+- **Soundeffekte** (`src/audio/sfxDefs.ts`): über 40 Effekte als Synthesizer-Parameter (Rechteck,
+  Dreieck, Sinus, Rauschen, Hüllkurven, Tonhöhenverläufe). Sie werden beim ersten Antippen bzw.
+  Tastendruck einmalig berechnet (Browser erlauben Ton erst nach einer Nutzer-Geste).
+- **Musik** (`src/audio/songs.ts` + `composer.ts`): ein kleiner Chiptune-Komponist erzeugt aus
+  Tonart, Tempo, Taktart, Akkordfolge und Stil vierstimmige Stücke (Melodie, Begleitung, Bass,
+  Schlagzeug). Jede Region hat ihr eigenes Stück – dazu Titelmusik, ein ruhiges
+  **Lagerfeuer-Thema** (spielt automatisch, sobald du an einem Rastfeuer stehst), Kampf-, Boss- und
+  Abspannmusik. Die Stücke werden im Hintergrund (Web Worker) berechnet und nahtlos geloopt;
+  Wechsel werden übergeblendet.
+- In Dialogen, im Kartenbuch und im Pausenmenü wird die Musik leiser.
+- **Einstellungen → Musik / Effekte / Stumm** regeln die Lautstärke (wird gespeichert).
+- Auf dem iPhone ist der Ton aus, wenn der Stumm-Schalter am Gerät aktiv ist.
+
+### Eigene Sounds oder Musik einsetzen
+
+Dateien (`.ogg`, `.mp3`, `.m4a`, `.wav`) nach `public/audio/` legen und in
+`public/audio/overrides.json` eintragen:
+
+```json
+{ "sfx": { "hit": "mein-treffer.ogg" }, "music": { "taufeld": "taufeld.mp3" } }
+```
+
+Die Namen der Effekte stehen in `src/audio/sfxDefs.ts`, die der Musikstücke in `src/audio/songs.ts`.
 
 ## Speichern
 
@@ -184,7 +213,7 @@ src/
               Talente, Truhen, Weltobjekte, Testkarte)
   gfx/        Palette, Pixel-Schrift, Grafik-Generatoren, Asset-Loader
   ui/         Text, Rahmen, Menüs
-  audio/      (Meilenstein 5)
+  audio/      Synthesizer, Soundeffekte, Chiptune-Komponist, Musikstücke, Audio-Engine (Web Audio)
 scripts/      Icon-Generator, PNG-Encoder
 tests/        Unit-Tests
 ```

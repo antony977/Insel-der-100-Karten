@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Sound } from '../audio/AudioEngine';
 import { BaseScene } from './BaseScene';
 import { TileRenderer } from '../world/TileRenderer';
 import { ObjectStreamer } from '../world/ObjectStreamer';
@@ -121,6 +122,10 @@ export class WorldScene extends BaseScene {
   private levelUpPending = false;
   private flashRect!: Phaser.GameObjects.Rectangle;
   private region: RegionId | '' = '';
+  private campfires: WorldObject[] = [];
+  private atCampfire = false;
+  /** Musik mit Vorrang (Bosskampf, Arena …) */
+  musicOverride: string | null = null;
   private regionCheckT = 0;
   private hiddenSpots: number[] = [];
   private api!: WorldApi;
@@ -154,6 +159,10 @@ export class WorldScene extends BaseScene {
     Game.player.map = this.loaded.id;
     this.map = this.loaded.map;
     this.applyWorldFlags();
+    this.campfires = this.map.objects.filter((o) => o.def.interact === 'campfire');
+    this.atCampfire = false;
+    this.musicOverride = null;
+    if (!this.loaded.meta) Sound.music(this.loaded.music);
 
     this.tiles = new TileRenderer(this, this.map, this.loaded.composer);
     this.objects = new ObjectStreamer(this, this.map);
@@ -314,6 +323,7 @@ export class WorldScene extends BaseScene {
       openShop: (id) => this.openShop(id),
       giveCard: (id) => Game.giveCard(id) !== null,
       heal: () => {
+        Sound.play('heal');
         const st = Game.inv.stats();
         Game.inv.lp = st.lp;
         Game.inv.aura = st.aura;
@@ -436,6 +446,7 @@ export class WorldScene extends BaseScene {
       return;
     }
     Game.flags.add(`offen:${tag}`);
+    Sound.play('chest');
     o.frame = 1;
     this.objects.refresh(index);
     const loot = TREASURES[tag] ?? { cards: [] };
@@ -459,6 +470,8 @@ export class WorldScene extends BaseScene {
       return;
     }
     Game.inv.money -= WISHING_WELL.cost;
+    Sound.play('coin');
+    this.time.delayedCall(250, () => Sound.play('well'));
     Game.events.emit('vitals-changed');
     const pool = Math.random() < WISHING_WELL.spellChance ? ZAUBERKARTEN.filter((z) => !z.spell?.questOnly) : SAMMELKARTEN.filter((c) => c.type !== 'Monster' && !/Bezwinge|Besiege/i.test(c.hint));
     const weights = WISHING_WELL.weights;
@@ -539,6 +552,7 @@ export class WorldScene extends BaseScene {
   }
 
   private useWell(o: WorldObject): void {
+    Sound.play('well');
     const town = o.tag?.startsWith('brunnen:') ? o.tag.slice(8) : '';
     if (town) {
       Game.lastWell = { map: Game.player.map, x: o.x, y: o.y + 18, town };
@@ -550,6 +564,7 @@ export class WorldScene extends BaseScene {
   }
 
   private useDoor(o: WorldObject): void {
+    Sound.play('door');
     const d = o.tag ? DOORS[o.tag] : undefined;
     if (!d) {
       this.message({ name: 'Tür', text: 'Die Tür ist verschlossen.' });
@@ -627,6 +642,7 @@ export class WorldScene extends BaseScene {
 
   changeMap(target: string, x = 0, y = 0): void {
     this.warping = true;
+    Sound.play('door', { rate: 0.8 });
     const from = Game.player.map;
     SaveSystem.autosave();
     this.cameras.main.fadeOut(300, 13, 10, 20);
@@ -655,6 +671,7 @@ export class WorldScene extends BaseScene {
 
   private fadeTeleport(x: number, y: number, text?: string): void {
     this.warping = true;
+    Sound.play('teleport');
     this.cameras.main.fadeOut(400, 13, 10, 20);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       this.player.x = x;
@@ -685,6 +702,7 @@ export class WorldScene extends BaseScene {
 
   private turnStatue(o: WorldObject, idx: number): void {
     o.frame = ((o.frame ?? 0) + 1) % 4;
+    Sound.play('stomp', { rate: 1.4, vol: 0.7 });
     Game.vars.set(o.tag ?? '', o.frame);
     this.objects.refresh(idx);
     this.fx.spawn('dust', o.x, o.y - 2);
@@ -713,6 +731,7 @@ export class WorldScene extends BaseScene {
       return true;
     }
     if (s.flag) Game.flags.add(s.flag);
+    Sound.play(s.needs ? 'dig' : 'select');
     Game.flags.add(`genommen:${tag}`);
     this.map.removeObject(idx);
     this.objects.refresh(idx);
@@ -750,6 +769,7 @@ export class WorldScene extends BaseScene {
       toast: (t) => this.toast(t),
       message: (name, text) => this.message({ name, text }),
       fx: (color) => {
+        Sound.play('spell');
         for (let i = 0; i < 14; i++) {
           const a = (i / 14) * Math.PI * 2;
           this.fx.spawn('sparkle', this.player.x, this.player.y - 14, { tint: color, vx: Math.cos(a) * 70, vy: Math.sin(a) * 60, depth: this.player.y + 3 });
@@ -931,7 +951,10 @@ export class WorldScene extends BaseScene {
     const by = Math.floor(ty / 8);
     for (let dy = -1; dy <= 1; dy++) for (let dx = -2; dx <= 2; dx++) Game.explored.add(`${Game.player.map}:${bx + dx},${by + dy}`);
     const meta = this.loaded.meta;
-    if (!meta) return;
+    if (!meta) {
+      this.updateMusic();
+      return;
+    }
     const rid = REGION_IDS[meta.region[ty * this.map.w + tx]];
     if (rid && rid !== 'meer' && rid !== this.region) {
       this.region = rid;
@@ -939,12 +962,25 @@ export class WorldScene extends BaseScene {
       this.registry.set('region', rid);
       if (rid === 'runenhall' && Game.quests.stage('q-start') === 2) Game.quests.set('q-start', 3);
     }
+    this.updateMusic();
     for (const t of TOWNS) {
       if (Math.hypot(t.x - tx, t.y - ty) < 16 && !Game.visited.has(t.id)) {
         Game.visited.add(t.id);
         this.toast(`Neue Stadt entdeckt: ${t.name}`);
       }
     }
+  }
+
+  /** Passende Musik wählen: Vorrang > Lagerfeuer > Region bzw. Karte */
+  private updateMusic(): void {
+    const px = this.player.x;
+    const py = this.player.y;
+    const limit = this.atCampfire ? 96 : 56;
+    this.atCampfire = this.campfires.some((c) => Math.abs(c.x - px) < limit && Math.abs(c.y - py) < limit && Math.hypot(c.x - px, c.y - py) < limit);
+    let id = this.loaded.meta && this.region ? REGIONS[this.region].music : this.loaded.music;
+    if (this.atCampfire) id = 'lagerfeuer';
+    if (this.musicOverride) id = this.musicOverride;
+    Sound.music(id, this.atCampfire ? 2 : 1.4);
   }
 
   // ------------------------------------------------------------ Update

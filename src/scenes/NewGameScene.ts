@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Sound } from '../audio/AudioEngine';
 import { BaseScene } from './BaseScene';
 import { addPanel, addText } from '../ui/Text';
 import { Input } from '../input/InputManager';
@@ -91,6 +92,7 @@ export class NewGameScene extends BaseScene {
   }
 
   private advanceIntro(): void {
+    Sound.play('page', { vary: 0.08 });
     if (this.shown < this.full.length) {
       this.shown = this.full.length;
       this.text.setText(this.full);
@@ -162,6 +164,7 @@ export class NewGameScene extends BaseScene {
   };
 
   private edit(fn: (s: string) => string): void {
+    Sound.play('talk', { rate: 1.2 });
     if (this.step === 'name') this.name = fn(this.name);
     else this.tech = fn(this.tech);
     this.entry.setText(`${this.step === 'name' ? this.name : this.tech}_`);
@@ -216,6 +219,7 @@ export class NewGameScene extends BaseScene {
   }
 
   private moveKey(dx: number, dy: number): void {
+    if (dx || dy) Sound.play('move');
     this.ky = (this.ky + dy + ROWS.length) % ROWS.length;
     this.kx = (this.kx + dx + 13) % 13;
     const t = this.keyObjs[this.ky]?.[this.kx];
@@ -295,6 +299,7 @@ export class NewGameScene extends BaseScene {
   }
 
   private pickAffinity(): void {
+    Sound.play('auraOn');
     for (const c of this.affCards) c.destroy();
     this.affCards = [];
     this.text.setText('').setTint(PAL.white).setY(160);
@@ -307,6 +312,8 @@ export class NewGameScene extends BaseScene {
 
   private finish(): void {
     this.busy = true;
+    Sound.play('fanfare');
+    Sound.music(null, 2.5);
     Game.newGame();
     Game.player.name = this.name;
     Game.prog.setAffinity(AFFINITIES[this.aff].id, this.tech);
@@ -333,10 +340,12 @@ export class NewGameScene extends BaseScene {
     }
     if (this.step === 'affinity') {
       if (Input.nav('left')) {
+        Sound.play('move');
         this.aff = (this.aff + 4) % 5;
         this.renderAffinity();
       }
       if (Input.nav('right')) {
+        Sound.play('move');
         this.aff = (this.aff + 1) % 5;
         this.renderAffinity();
       }

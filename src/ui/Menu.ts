@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { addPanel, addText } from './Text';
 import { PAL } from '../gfx/palette';
 import type { InputManager } from '../input/InputManager';
+import { Sound } from '../audio/AudioEngine';
 
 export interface MenuItem {
   label: string | (() => string);
@@ -83,6 +84,7 @@ export class Menu {
         const item = this.items[idx];
         const localX = p.worldX - (x - 4);
         if (item.onLeft && item.onRight) {
+          Sound.play('move');
           if (localX > (w + 8) * 0.55) item.onRight();
           else if (localX > (w + 8) * 0.3) item.onLeft();
           else item.onSelect?.();
@@ -121,6 +123,7 @@ export class Menu {
   }
 
   private move(d: number): void {
+    Sound.play('move');
     let i = this.selected;
     for (let n = 0; n < this.items.length; n++) {
       i = (i + d + this.items.length) % this.items.length;
@@ -131,7 +134,11 @@ export class Menu {
 
   private activate(): void {
     const item = this.items[this.selected];
-    if (!item || this.isDisabled(this.selected)) return;
+    if (!item || this.isDisabled(this.selected)) {
+      Sound.play('error');
+      return;
+    }
+    if (item.onSelect) Sound.play('select');
     item.onSelect?.();
     this.refresh();
   }
@@ -177,15 +184,20 @@ export class Menu {
     if (input.nav('down')) this.move(1);
     const item = this.items[this.selected];
     if (item?.onLeft && input.nav('left')) {
+      Sound.play('move');
       item.onLeft();
       this.refresh();
     }
     if (item?.onRight && input.nav('right')) {
+      Sound.play('move');
       item.onRight();
       this.refresh();
     }
     if (input.confirm()) this.activate();
-    else if (input.cancel()) this.opts.onCancel?.();
+    else if (input.cancel() && this.opts.onCancel) {
+      Sound.play('back');
+      this.opts.onCancel();
+    }
   }
 
   destroy(): void {

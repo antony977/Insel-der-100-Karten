@@ -24,6 +24,8 @@ import { Input } from './input/InputManager';
 import { TouchControls } from './input/TouchControls';
 import { mouseCursor } from './gfx/generators/ui';
 import { registerSW } from 'virtual:pwa-register';
+import { Sound } from './audio/AudioEngine';
+import { registerSoundHooks } from './audio/hooks';
 
 // iOS: Zoom-Gesten und Scrollen unterbinden
 document.addEventListener('gesturestart', (e) => e.preventDefault());
@@ -52,6 +54,8 @@ const game = new Phaser.Game({
     keyboard: false,
     gamepad: false,
   },
+  // eigenes Sound-System (src/audio) – Phaser-Audio bleibt aus
+  audio: { noAudio: true },
   disableContextMenu: true,
   banner: false,
   fps: { target: 60, smoothStep: true },
@@ -72,6 +76,8 @@ const game = new Phaser.Game({
 });
 
 Input.attach();
+Sound.init();
+registerSoundHooks();
 
 // Beim Verlassen der Seite (App-Wechsel, Tab schliessen) automatisch speichern
 const saveIfPlaying = () => {
@@ -91,3 +97,4 @@ if (import.meta.env.PROD) {
 // Für Tests und Debugging
 (window as unknown as { __game: Phaser.Game }).__game = game;
 (window as unknown as { __state: typeof Game }).__state = Game;
+(window as unknown as { __sound: typeof Sound }).__sound = Sound;

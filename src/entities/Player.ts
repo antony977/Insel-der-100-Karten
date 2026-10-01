@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Sound } from '../audio/AudioEngine';
 import { charFrame, DIRS, type Dir, type PoseName } from '../gfx/generators/characters';
 import type { InputManager } from '../input/InputManager';
 import type { WorldMap } from '../world/WorldMap';
@@ -498,6 +499,7 @@ export class Player implements CombatPlayer {
     this.rollDX = dx;
     this.rollDY = dy;
     this.setState('roll');
+    Sound.play('roll', { vary: 0.1 });
     this.scaleX = 1.15;
     this.scaleY = 0.85;
     const mods = Game.prog.mods;
@@ -535,6 +537,7 @@ export class Player implements CombatPlayer {
           this.shieldOn = false;
           return 'Zu wenig Aura.';
         }
+        if (this.shieldOn) Sound.play('shield');
         this.auraBurst(this.shieldOn);
         return null;
       case 'fokus': {
@@ -544,6 +547,7 @@ export class Player implements CombatPlayer {
         inv.aura -= cost;
         this.focusT = 8;
         this.auraBurst(true);
+        Sound.play('burst', { rate: 1.3 });
         this.hooks.flash?.(PAL.red, 120);
         return null;
       }
@@ -568,6 +572,7 @@ export class Player implements CombatPlayer {
 
   private auraBurst(on: boolean): void {
     this.setState('aura');
+    Sound.play(on ? 'auraOn' : 'auraOff');
     if (!on) return;
     this.hooks.shake(1, 100);
     for (let i = 0; i < 10; i++) {
@@ -610,6 +615,7 @@ export class Player implements CombatPlayer {
     if (!w) return;
     const [dx, dy] = this.aimDir();
     const h = stossDamage(Game.inv.stats(), Game.prog.mods, charge, this.focusT > 0);
+    Sound.play(scale > 1.2 ? 'burst' : 'stoss', { vary: 0.05 });
     w.projectiles.spawn({
       kind: 'aura',
       x: this.x + dx * 8,
@@ -641,6 +647,8 @@ export class Player implements CombatPlayer {
     const mods = Game.prog.mods;
     const color = this.auraColor;
     w.numbers.spawn(this.x, this.y - 34, Game.prog.techName, { color, small: true });
+    Sound.play('special');
+    if (Game.prog.affinity === 'wurzel') Sound.play('stomp');
     this.hooks.flash?.(color, 90);
     switch (Game.prog.affinity) {
       case 'wurzel': {
@@ -736,6 +744,7 @@ export class Player implements CombatPlayer {
     const dmg = incomingDamage(atk, st, Game.prog.mods, this.shieldOn, this.focusT > 0);
     if (opts.slow) this.slowT = 2.2;
     this.world?.numbers.spawn(this.x, this.y - 28, String(dmg), { color: this.shieldOn ? PAL.ice : PAL.coral });
+    Sound.play(this.shieldOn ? 'clank' : 'hurt', { vary: 0.05 });
     if (this.godMode) {
       this.iframeT = 0.3;
       return dmg;
@@ -769,6 +778,7 @@ export class Player implements CombatPlayer {
     this.shieldOn = false;
     this.focusT = 0;
     this.setState('down');
+    Sound.play('death');
     this.hooks.shake(4, 300);
     this.hooks.hitStop(140);
     this.hooks.died?.();
@@ -794,6 +804,7 @@ export class Player implements CombatPlayer {
   }
 
   private spawnSlash(scale: number, step: number): void {
+    Sound.play(scale >= 1.25 ? 'swingHeavy' : 'swing', { vary: 0.08 });
     const [fx, fy] = DIR_VEC[this.facing];
     const dist = 10 + scale * 4;
     const flip = step === 1;

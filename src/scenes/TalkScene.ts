@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Sound } from '../audio/AudioEngine';
 import { BaseScene } from './BaseScene';
 import { addPanel, addText } from '../ui/Text';
 import { Input } from '../input/InputManager';
@@ -43,6 +44,7 @@ export class TalkScene extends BaseScene {
   private choices: Choice[] = [];
   private choiceTexts: Phaser.GameObjects.BitmapText[] = [];
   private choiceSel = 0;
+  private voice = 1;
   private choiceHL!: Phaser.GameObjects.NineSlice;
   private afterFns: (() => void)[] = [];
   private tapped = false;
@@ -65,6 +67,12 @@ export class TalkScene extends BaseScene {
     this.npcName = npc?.name ?? '';
     this.npcRole = npc?.role ?? '';
     this.npcKey = npc ? `npc-${npc.id}` : '';
+    // jede Figur „spricht" in eigener Tonhöhe
+    let h = 7;
+    for (const ch of npc?.id ?? 'x') h = (h * 31 + ch.charCodeAt(0)) % 997;
+    this.voice = 0.8 + (h % 50) / 100;
+    Sound.duck('talk', true);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => Sound.duck('talk', false));
     const api: WorldApi = {
       ...data.api,
       after: (fn) => this.afterFns.push(fn),
@@ -198,6 +206,7 @@ export class TalkScene extends BaseScene {
   }
 
   private selectChoice(i: number): void {
+    if (i !== this.choiceSel) Sound.play('move');
     this.choiceSel = i;
     this.choiceHL.setY(5 + i * 14);
     this.choiceTexts.forEach((t, k) => t.setTint(k === i ? PAL.gold : PAL.white));
@@ -205,6 +214,7 @@ export class TalkScene extends BaseScene {
 
   private choose(): void {
     const c = this.choices[this.choiceSel];
+    Sound.play('select');
     this.choiceBox.setVisible(false);
     this.choices = [];
     const r = c.do?.(this.ctx);
@@ -239,8 +249,11 @@ export class TalkScene extends BaseScene {
     }
     const speed = [30, 60, 120, 9999][Settings.get().textSpeed] ?? 60;
     if (this.shown < this.full.length) {
+      const before = Math.floor(this.shown);
       this.shown = Math.min(this.full.length, this.shown + speed * dt);
-      this.text.setText(this.full.slice(0, Math.floor(this.shown)));
+      const now = Math.floor(this.shown);
+      this.text.setText(this.full.slice(0, now));
+      if (Math.floor(now / 3) > Math.floor(before / 3) && /[^\s.,!?…]/.test(this.full[now - 1] ?? '')) Sound.play('talk', { rate: this.voice, vary: 0.05 });
     }
     this.more.setVisible(this.shown >= this.full.length && Math.floor(this.time.now / 300) % 2 === 0);
     const pressed = Input.confirm() || Input.cancel() || tapped;

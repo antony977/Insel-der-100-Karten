@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Sound } from '../audio/AudioEngine';
 import { BaseScene } from './BaseScene';
 import { addPanel, addText } from '../ui/Text';
 import { Menu } from '../ui/Menu';
@@ -36,6 +37,7 @@ export class TitleScene extends BaseScene {
   create(): void {
     this.setupCamera();
     Input.setContext('menu');
+    Sound.music('title', 0.8);
     this.cards = [];
     this.t = 0;
     this.add.image(0, 0, 'title-bg').setOrigin(0, 0).setDepth(-10);
@@ -69,7 +71,7 @@ export class TitleScene extends BaseScene {
     this.menu = new Menu(this, GAME_W / 2 - 62, 181, 124, items, { rowH: 14 });
     if (!SaveSystem.info('auto')) this.menu.select(1);
 
-    addText(this, 4, GAME_H - 13, `v${VERSION} · Meilenstein 4`, { font: 'px-o', color: PAL.silver });
+    addText(this, 4, GAME_H - 13, `v${VERSION} · Meilenstein 5`, { font: 'px-o', color: PAL.silver });
     this.sourceText = addText(this, GAME_W - 4, GAME_H - 13, '', { font: 'px-o', ox: 1, color: PAL.silver });
     const updateSource = (s: InputSource) => this.sourceText.setText(`Eingabe: ${SOURCE_LABEL[s]}`);
     updateSource(Input.source);
