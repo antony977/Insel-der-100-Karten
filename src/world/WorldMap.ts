@@ -25,6 +25,17 @@ export interface Box {
   obj: number;
 }
 
+/** Gebiet, in dem Monster einer Art auftauchen */
+export interface SpawnZone {
+  monster: string;
+  x: number;
+  y: number;
+  r: number;
+  count: number;
+  /** Sekunden bis zum Nachwachsen */
+  respawn?: number;
+}
+
 /** Grösse der Streaming-Chunks in Pixeln */
 export const CHUNK_PX = 256;
 
@@ -45,6 +56,7 @@ export class WorldMap {
   /** Bodenkacheln im Dual-Grid ((w+1)×(h+1)) */
   ground: Uint16Array;
   readonly objects: WorldObject[] = [];
+  readonly spawns: SpawnZone[] = [];
   readonly chunksX: number;
   readonly chunksY: number;
   /** Objekt-Indizes pro Chunk */

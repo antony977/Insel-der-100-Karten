@@ -11,6 +11,7 @@ import { KeysScene } from './scenes/KeysScene';
 import { BookScene } from './scenes/BookScene';
 import { DialogScene } from './scenes/DialogScene';
 import { SlotsScene } from './scenes/SlotsScene';
+import { LevelUpScene } from './scenes/LevelUpScene';
 import { SaveSystem } from './systems/SaveSystem';
 import { Game } from './systems/GameState';
 import { Display } from './systems/Display';
@@ -54,7 +55,7 @@ const game = new Phaser.Game({
     antialiasGL: false,
     pixelArt: true,
   },
-  scene: [BootScene, TitleScene, WorldScene, HudScene, BookScene, PauseScene, SettingsScene, KeysScene, SlotsScene, DialogScene],
+  scene: [BootScene, TitleScene, WorldScene, HudScene, BookScene, PauseScene, SettingsScene, KeysScene, SlotsScene, DialogScene, LevelUpScene],
   callbacks: {
     postBoot: (g) => {
       g.registry.set('cursorCss', cursorCss);

@@ -284,3 +284,70 @@ export function phoneIcon(): Raster {
   r.set(10, 28, PAL.silver);
   return r;
 }
+
+/** Fähigkeitskarte (Level-Up) 92×124, 4 Frames: rot, grün, blau, gold */
+export const ABILITY_W = 92;
+export const ABILITY_H = 124;
+
+export function abilityCards(): Raster {
+  const ramps: Ramp[] = [RAMPS.red, RAMPS.green, RAMPS.blue, RAMPS.gold];
+  const out = new Raster(ABILITY_W * 4, ABILITY_H);
+  ramps.forEach((rp, f) => {
+    const r = new Raster(ABILITY_W, ABILITY_H);
+    const W = ABILITY_W;
+    const H = ABILITY_H;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (!inRoundRect(x, y, W, H, 0, 7)) continue;
+        let c: number = rp[2];
+        if (!inRoundRect(x, y, W, H, 1, 7)) c = PAL.ink;
+        else if (!inRoundRect(x, y, W, H, 2, 6)) c = x + y < 40 ? rp[3] : rp[1];
+        else if (!inRoundRect(x, y, W, H, 5, 5)) c = rp[2];
+        else if (!inRoundRect(x, y, W, H, 6, 4)) c = rp[0];
+        else c = y < 34 ? rp[1] : PAL.sandLight;
+        r.set(x, y, c);
+      }
+    }
+    // Kopfband-Kante
+    for (let x = 6; x < W - 6; x++) r.set(x, 34, rp[0]);
+    // Rauten in den Ecken
+    const gem = (gx: number, gy: number) => {
+      r.set(gx, gy - 1, rp[3]);
+      r.set(gx - 1, gy, rp[3]);
+      r.set(gx, gy, PAL.white);
+      r.set(gx + 1, gy, rp[2]);
+      r.set(gx, gy + 1, rp[1]);
+    };
+    gem(10, H - 10);
+    gem(W - 11, H - 10);
+    out.blit(r, f * ABILITY_W, 0);
+  });
+  return out;
+}
+
+const ICON16: Record<string, string[]> = {
+  fist: ['................', '.....kkkkk......', '....kwwwwwk.....', '...kwwkwkwwk....', '...kwkwkwkwk....', '...kwwwwwwwkk...', '...kwwwwwwwwk...', '...kwwwwwwwwk...', '....kwwwwwwk....', '....kwwwwwk.....', '.....kwwwk......', '.....kwwwk......', '.....kkkkk......', '................', '................', '................'],
+  shield: ['................', '...kkkkkkkkkk...', '..kwwwwwwwwwwk..', '..kwwwwkkwwwwk..', '..kwwwkwwkwwwk..', '..kwwwwwwwwwwk..', '..kwwwwwwwwwwk..', '...kwwwwwwwwk...', '...kwwwwwwwwk...', '....kwwwwwwk....', '.....kwwwwk.....', '......kwwk......', '.......kk.......', '................', '................', '................'],
+  heart: ['................', '................', '..kkkk...kkkk...', '.kwwwwk.kwwwwk..', 'kwwwwwwkwwwwwwk.', 'kwwwwwwwwwwwwwk.', 'kwwwwwwwwwwwwwk.', '.kwwwwwwwwwwwk..', '..kwwwwwwwwwk...', '...kwwwwwwwk....', '....kwwwwwk.....', '.....kwwwk......', '......kwk.......', '.......k........', '................', '................'],
+  burst: ['.......k........', '.......kk.......', '..k...kwk...k...', '...k..kwk..k....', '...kkkwwwkkk....', '....kwwwwwk.....', 'kkkkwwwwwwwkkkk.', '..kkwwwwwwwkk...', '....kwwwwwk.....', '...kkkwwwkkk....', '...k..kwk..k....', '..k...kwk...k...', '.......kk.......', '.......k........', '................', '................'],
+  boot: ['................', '....kkkkk.......', '....kwwwk.......', '....kwwwk.......', '....kwwwk.......', '....kwwwk.......', '....kwwwk.......', '....kwwwwkkk....', '....kwwwwwwwk...', '...kwwwwwwwwwk..', '...kwwwwwwwwwk..', '...kkkkkkkkkkk..', '................', '................', '................', '................'],
+  wind: ['................', '................', '.kkkkkkkkk......', 'kwwwwwwwwwk.....', '.kkkkkkkwwk.....', '.......kwk......', '..kkkkkkkkkkkk..', '.kwwwwwwwwwwwwk.', '..kkkkkkkkkwwk..', '..........kwk...', '...kkkkkkkk.....', '..kwwwwwwwwk....', '...kkkkkkwwk....', '........kk......', '................', '................'],
+  clover: ['................', '....kkk.kkk.....', '...kwwwkwwwk....', '...kwwwkwwwk....', '.kkkkwwwwwkkkk..', 'kwwwwkwwwkwwwwk.', 'kwwwwwwwwwwwwwk.', '.kkkkwwwwwkkkk..', '...kwwwkwwwk....', '...kwwwkwwwk....', '....kkkkkkk.....', '.......kk.......', '........kk......', '.........k......', '................', '................'],
+  drop: ['.......k........', '......kwk.......', '......kwk.......', '.....kwwwk......', '.....kwwwk......', '....kwwwwwk.....', '...kwwwwwwwk....', '...kwkwwwwwk....', '...kwkwwwwwk....', '...kwwkwwwwk....', '....kwwwwwk.....', '.....kkkkk......', '................', '................', '................', '................'],
+  swirl: ['................', '....kkkkkk......', '...kwwwwwwk.....', '..kwwkkkkwwk....', '..kwk....kwk....', '..kwk.kk.kwk....', '..kwk.kwkkwk....', '..kwwk.kwwk.....', '...kwwkkkk......', '....kwwwwwwk....', '.....kkkkkk.....', '................', '................', '................', '................', '................'],
+  eye: ['................', '................', '................', '....kkkkkkk.....', '..kkwwwwwwwkk...', '.kwwwwkkkwwwwk..', 'kwwwwkwwwkwwwwk.', 'kwwwwkwkwkwwwwk.', '.kwwwwkkkwwwwk..', '..kkwwwwwwwkk...', '....kkkkkkk.....', '................', '................', '................', '................', '................'],
+  branchA: ['................', '.......kk.......', '......kwwk......', '.....kwwwwk.....', '....kwwwwwwk....', '...kwwwwwwwwk...', '...kkkkwwkkkk...', '......kwwk......', '......kwwk......', '......kwwk......', '......kwwk......', '......kwwk......', '......kkkk......', '................', '................', '................'],
+  branchB: ['................', '..k.........k...', '..kk.......kk...', '..kwk.....kwk...', '...kwk...kwk....', '....kwk.kwk.....', '.....kwkwk......', '......kwk.......', '.....kwkwk......', '....kwk.kwk.....', '...kwk...kwk....', '..kwk.....kwk...', '..kk.......kk...', '................', '................', '................'],
+  branchC: ['................', '......kkk.......', '.....kwwwk......', '....kwwwwwk.....', '....kwwwwwk.....', '.....kwwwk......', '......kkk.......', '.......k........', '...kkk.k.kkk....', '..kwwwkkkwwwk...', '..kwwwwkwwwwk...', '...kkkk.kkkk....', '................', '................', '................', '................'],
+  star: ['.......k........', '......kwk.......', '......kwk.......', '.kkkkkkwkkkkkk..', '.kwwwwwwwwwwwk..', '..kwwwwwwwwwk...', '...kwwwwwwwk....', '...kwwwkwwwk....', '..kwwwk.kwwwk...', '..kwwk...kwwk...', '..kkk.....kkk...', '................', '................', '................', '................', '................'],
+  orb: ['................', '................', '.....kkkkk......', '....kwwwwwk.....', '...kwwwwwwwk....', '...kwkkwwwwk.k..', '...kwkwwwwwkkwk.', '...kwwwwwwwk.k..', '....kwwwwwk.....', '.....kkkkk......', '................', '................', '................', '................', '................', '................'],
+};
+
+/** Symbole für Fähigkeitskarten 16×16 (weiss mit Umriss, wird eingefärbt) */
+export const ABILITY_ICON_ORDER = ['fist', 'shield', 'heart', 'burst', 'boot', 'wind', 'clover', 'drop', 'swirl', 'eye', 'branchA', 'branchB', 'branchC', 'star', 'orb'];
+
+export function abilityIcons(): Raster {
+  const out = new Raster(16 * ABILITY_ICON_ORDER.length, 16);
+  ABILITY_ICON_ORDER.forEach((k, i) => stencil(out, i * 16, 0, ICON16[k], { k: PAL.ink, w: PAL.white }));
+  return out;
+}

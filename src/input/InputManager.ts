@@ -196,6 +196,15 @@ export class InputManager {
     this.touchStickY = y;
   }
 
+  /** Wischrichtung auf dem Aura-Knopf (für das Aura-Rad), −1…1 */
+  auraDragX = 0;
+  auraDragY = 0;
+
+  setAuraDrag(x: number, y: number): void {
+    this.auraDragX = x;
+    this.auraDragY = y;
+  }
+
   setPointer(x: number, y: number, now: number): void {
     if (x !== this.pointerX || y !== this.pointerY) this.pointerMovedAt = now;
     this.pointerX = x;

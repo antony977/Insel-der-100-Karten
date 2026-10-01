@@ -37,7 +37,8 @@ export interface InventorySave {
   wonders: string[];
 }
 
-export type UseResult = { ok: boolean; message: string };
+export type UseAction = { kind: 'summon'; monster: string } | { kind: 'throw'; item: string } | { kind: 'wonder'; wonder: string };
+export type UseResult = { ok: boolean; message: string; action?: UseAction };
 
 /**
  * Echte Gegenstände (aus entfesselten Karten): Beutel, Ausrüstung, Werkzeuge, Schlüssel,
@@ -58,13 +59,33 @@ export class Inventory {
   chips = 0;
   lp = BASE_STATS.lp;
   aura = BASE_STATS.aura;
+  /** Zusatzwerte aus Stufe/Talenten (vom Spielstand gesetzt) */
+  private bonusStats: Partial<Stats> = {};
+  /** Änderungszähler – Werte werden nur bei Änderungen neu berechnet */
+  private rev = 0;
+  private cacheRev = -1;
+  private cache: Stats = { ...BASE_STATS };
+
+  set bonus(b: Partial<Stats>) {
+    this.bonusStats = b;
+    this.rev++;
+  }
+
+  /** Nach Änderungen an Ausrüstung/Werten aufrufen */
+  touch(): void {
+    this.rev++;
+  }
 
   stats(): Stats {
-    const s: Stats = { ...BASE_STATS };
+    if (this.cacheRev === this.rev) return this.cache;
+    this.cacheRev = this.rev;
+    const s: Stats = this.cache;
+    Object.assign(s, BASE_STATS);
     const add = (p: Partial<Stats>) => {
       for (const k of Object.keys(p) as (keyof Stats)[]) s[k] += p[k] ?? 0;
     };
     add(this.perma);
+    add(this.bonusStats);
     for (const id of Object.values(this.equip)) {
       if (!id) continue;
       const u = card(id).unleash;
@@ -101,6 +122,7 @@ export class Inventory {
       case 'perma':
         this.perma = { ...this.perma };
         for (const k of Object.keys(u.stats) as (keyof Stats)[]) this.perma[k] = (this.perma[k] ?? 0) + (u.stats[k] ?? 0);
+        this.touch();
         this.lp = this.stats().lp;
         this.aura = this.stats().aura;
         return 'Eine warme Kraft durchströmt dich. Deine Werte steigen dauerhaft!';
@@ -163,11 +185,13 @@ export class Inventory {
         return { ok: true, message: `${c.name} ausgerüstet.` };
       }
       case 'companion':
-        return { ok: false, message: 'Begleiter können ab Meilenstein 3 gerufen werden.' };
+        this.removeItem(id);
+        return { ok: true, message: `${c.name} begleitet dich jetzt!`, action: { kind: 'summon', monster: u.monster } };
       case 'wonder':
-        return { ok: false, message: 'Dieses Wunder braucht einen besonderen Ort (folgt mit den Regionen).' };
+        return { ok: true, message: `${c.name} entfaltet seine Wirkung…`, action: { kind: 'wonder', wonder: u.wonder } };
       case 'throw':
-        return { ok: false, message: 'Werfen geht im Kampf (folgt in Meilenstein 3).' };
+        this.removeItem(id);
+        return { ok: true, message: `Du wirfst: ${c.name}.`, action: { kind: 'throw', item: u.item } };
       case 'trade':
         return { ok: false, message: `Händler zahlen dafür ${u.value} Münzen.` };
       default:
@@ -180,6 +204,7 @@ export class Inventory {
   }
 
   private clampVitals(): void {
+    this.touch();
     const s = this.stats();
     this.lp = Math.min(this.lp, s.lp);
     this.aura = Math.min(this.aura, s.aura);
@@ -225,6 +250,7 @@ export class Inventory {
     this.perma = { ...s.perma };
     this.lp = s.lp;
     this.aura = s.aura;
+    this.touch();
     this.companions.length = 0;
     this.companions.push(...(s.companions ?? []));
     this.wonders.length = 0;

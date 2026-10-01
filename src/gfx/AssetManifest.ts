@@ -8,6 +8,7 @@ import { RAMPS, PAL } from './palette';
 import * as title from './generators/title';
 import * as cards from './generators/cardArt';
 import { RANKS } from '../data/cardTypes';
+import { creatureSheet, SPECIES } from './generators/creatures';
 
 /**
  * Verzeichnis aller Grafiken. Jede Grafik wird per Code erzeugt – kann aber jederzeit durch
@@ -78,6 +79,21 @@ export const ASSETS: AssetDef[] = [
   { key: 'fx-sparkle', frame: { w: 7, h: 7 }, generate: () => fx.sparkle(), layout: '4 Frames 7×7' },
   { key: 'fx-aura', frame: { w: 36, h: 44 }, generate: () => fx.auraFlame(), layout: '4 Frames 36×44 (weiss, wird eingefärbt)' },
   { key: 'fx-impact', frame: { w: 24, h: 24 }, generate: () => fx.impact(), layout: '3 Frames 24×24' },
+  { key: 'proj', frame: { w: 12, h: 12 }, generate: () => fx.projectiles(), layout: `Projektile 12×12: ${fx.PROJ_FRAMES.join(', ')}` },
+  { key: 'fx-ring', frame: { w: 48, h: 48 }, generate: () => fx.ring(), layout: 'Schockwelle 4 Frames 48×48 (weiss)' },
+  { key: 'fx-roots', frame: { w: 16, h: 20 }, generate: () => fx.roots(), layout: 'Wurzeln 3 Frames 16×20' },
+  { key: 'fx-poof', frame: { w: 16, h: 16 }, generate: () => fx.poof(), layout: 'Rauch 4 Frames 16×16' },
+  { key: 'fx-crit', frame: { w: 15, h: 15 }, generate: () => fx.critStar(), layout: 'Kritisch-Stern 3 Frames 15×15' },
+  { key: 'fx-coin', frame: { w: 7, h: 7 }, generate: () => fx.coin(), layout: 'Münze 4 Frames 7×7' },
+  { key: 'fx-shield', generate: () => fx.shieldBubble(), layout: 'Aura-Schild 30×34 (weiss)' },
+  { key: 'fx-net', generate: () => fx.auraNet(), layout: 'Aura-Netz 64×48' },
+  { key: 'fx-alert', generate: () => fx.alertMark(), layout: 'Ausrufezeichen 7×11' },
+  ...Object.keys(SPECIES).map((id) => ({
+    key: `mon-${id}`,
+    frame: { w: SPECIES[id].size, h: SPECIES[id].size },
+    generate: () => creatureSheet(id),
+    layout: `Monster ${SPECIES[id].size}×${SPECIES[id].size}, Blick nach links. Spalten: idle0, idle1, lauf0, lauf1, Angriff, Treffer, Spezial`,
+  })),
   { key: 'ui-frame', generate: () => ui.frame(ui.FRAME_STYLES['ui-frame']), layout: 'NineSlice 24×24, Ecken 8' },
   { key: 'ui-frame-gold', generate: () => ui.frame(ui.FRAME_STYLES['ui-frame-gold']), layout: 'NineSlice 24×24, Ecken 8' },
   { key: 'ui-frame-paper', generate: () => ui.frame(ui.FRAME_STYLES['ui-frame-paper']), layout: 'NineSlice 24×24, Ecken 8' },
@@ -85,6 +101,8 @@ export const ASSETS: AssetDef[] = [
   { key: 'ui-cursor', frame: { w: 9, h: 9 }, generate: () => ui.menuCursor(), layout: '2 Frames 9×9' },
   { key: 'ui-icons', frame: { w: 9, h: 9 }, generate: () => ui.hudIcons(), layout: 'Herz, Aura, Münze, Karte, Buch, Stern (je 9×9)' },
   { key: 'ui-crosshair', generate: () => ui.crosshair(), layout: '11×11' },
+  { key: 'ability-cards', frame: { w: ui.ABILITY_W, h: ui.ABILITY_H }, generate: () => ui.abilityCards(), layout: 'Fähigkeitskarten rot, grün, blau, gold' },
+  { key: 'ability-icons', frame: { w: 16, h: 16 }, generate: () => ui.abilityIcons(), layout: `Symbole 16×16: ${ui.ABILITY_ICON_ORDER.join(', ')}` },
   { key: 'title-bg', generate: () => title.titleBackground(), layout: '480×270 Titelhintergrund' },
   { key: 'cards', frame: { w: cards.CARD_W, h: cards.CARD_H }, generate: () => cards.cardsAtlas(), layout: 'Alle Karten 30×40 (Reihenfolge wie data/cards.ts)' },
   { key: 'cards-sil', frame: { w: cards.CARD_W, h: cards.CARD_H }, generate: () => cards.silhouetteAtlas(), layout: 'Silhouetten 000–099, 30×40' },

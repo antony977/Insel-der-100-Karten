@@ -21,6 +21,57 @@ import { SaveSystem } from '../systems/SaveSystem';
 import { ALL_CARDS, cardIndex, cardLabel, SAMMELKARTEN, ZAUBERKARTEN } from '../data/cards';
 import type { CardDef, Rank } from '../data/cardTypes';
 import { STARTER_CARDS, TREASURES, WISHING_WELL } from '../data/treasures';
+import { DamageNumbers } from '../systems/combat/DamageNumbers';
+import { Projectiles } from '../systems/combat/Projectiles';
+import { EnemyManager } from '../systems/combat/EnemyManager';
+import type { CombatWorld, Decoy } from '../systems/combat/CombatWorld';
+import { specialDamage } from '../systems/combat/Damage';
+import { TECHNIQUES, type TechniqueId } from '../data/aura';
+import { MONSTER_BY_ID } from '../data/monsters';
+import type { UseAction } from '../systems/cards/Inventory';
+
+/** Spiegelbild (Spiegel-Affinität): zieht Angriffe auf sich und explodiert */
+class MirrorDecoy implements Decoy {
+  x = 0;
+  y = 0;
+  active = false;
+  hp = 0;
+  t = 0;
+  power = 1;
+  readonly sprite: Phaser.GameObjects.Sprite;
+  onBreak?: (d: MirrorDecoy) => void;
+  constructor(scene: Phaser.Scene) {
+    this.sprite = scene.add.sprite(0, 0, 'player', 0).setOrigin(12 / 24, 30 / 32).setVisible(false).setAlpha(0.7);
+  }
+  spawn(x: number, y: number, seconds: number, power: number, frame: number): void {
+    this.x = x;
+    this.y = y;
+    this.t = seconds;
+    this.hp = 3;
+    this.power = power;
+    this.active = true;
+    this.sprite.setPosition(x, y).setFrame(frame).setVisible(true).setTint(PAL.pink).setDepth(y);
+  }
+  hit(_dmg: number): void {
+    if (!this.active) return;
+    this.hp--;
+    this.sprite.setTintFill(PAL.white);
+    this.sprite.scene.time.delayedCall(60, () => this.sprite.setTint(PAL.pink));
+    if (this.hp <= 0) this.shatter();
+  }
+  update(dt: number, time: number): void {
+    if (!this.active) return;
+    this.t -= dt;
+    this.sprite.setAlpha(0.55 + Math.sin(time / 90) * 0.15);
+    if (this.t <= 0) this.shatter();
+  }
+  shatter(): void {
+    if (!this.active) return;
+    this.active = false;
+    this.sprite.setVisible(false);
+    this.onBreak?.(this);
+  }
+}
 
 interface Npc {
   sprite: Phaser.GameObjects.Sprite;
@@ -60,6 +111,18 @@ export class WorldScene extends BaseScene {
   private continueGame = false;
   private autosaveT = 0;
   private pendingCards: CardDef[] = [];
+  private numbers!: DamageNumbers;
+  private projectiles!: Projectiles;
+  enemies!: EnemyManager;
+  private combat!: CombatWorld & { enemies: EnemyManager };
+  private decoy!: MirrorDecoy;
+  private auraHeld = false;
+  private auraHold = 0;
+  private wheelOpen = false;
+  private wheelSel: TechniqueId | null = null;
+  private dying = false;
+  private levelUpPending = false;
+  private flashRect!: Phaser.GameObjects.Rectangle;
 
   constructor() {
     super('World');
@@ -100,7 +163,39 @@ export class WorldScene extends BaseScene {
       interact: (x, y) => this.tryInteract(x, y),
       spell: (slot) => this.toast(`Schnellzauber ${slot}: Zauber wirken folgt in Meilenstein 4.`),
       aimWorld: () => this.aimWorld(),
+      died: () => this.onPlayerDied(),
+      decoy: (x, y, sec, power) => this.decoy.spawn(x, y, sec, power, this.player.sprite.frame.name as unknown as number),
+      pullCards: (_x, _y, r) => this.ground.pull(r),
+      flash: (c, ms) => this.flash(c, ms),
+      toast: (t) => this.toast(t),
     });
+
+    // --- Kampf
+    this.numbers = new DamageNumbers(this);
+    this.projectiles = new Projectiles(this, this.map);
+    this.decoy = new MirrorDecoy(this);
+    this.decoy.onBreak = (d) => this.decoyExplode(d);
+    this.combat = {
+      scene: this,
+      map: this.map,
+      fx: this.fx,
+      numbers: this.numbers,
+      projectiles: this.projectiles,
+      player: this.player,
+      decoy: this.decoy,
+      shake: (i, ms) => this.shake(i, ms),
+      hitStop: (ms) => this.hitStop(ms),
+      toast: (t) => this.toast(t),
+      enemies: null as unknown as EnemyManager,
+    };
+    this.enemies = new EnemyManager(this.combat);
+    this.combat.enemies = this.enemies;
+    this.player.world = this.combat;
+    this.flashRect = this.add.rectangle(0, 0, GAME_W, GAME_H, 0xffffff, 0).setOrigin(0, 0).setScrollFactor(0).setDepth(300000).setBlendMode(Phaser.BlendModes.ADD);
+    this.dying = false;
+    this.levelUpPending = Game.prog.pending > 0;
+    this.wheelOpen = false;
+    this.auraHeld = false;
 
     this.addNpc('npc-lumi', this.map.spawnX + 40, this.map.spawnY - 26, 'Lumi', [
       'Ruf jederzeit dein Buch mit B (oder dem Buch-Knopf). Neue Karten liegen zuerst in deiner Hand.',
@@ -137,6 +232,10 @@ export class WorldScene extends BaseScene {
       ),
       Game.events.on('card-transformed', (def, msg) => this.toast(`Zu spät! ${cardLabel(def)} ${def.name} hat sich verwandelt. ${msg}`)),
       Game.events.on('message', (t) => this.toast(t)),
+      Game.events.on('level-up', () => {
+        this.levelUpPending = true;
+      }),
+      Game.events.on('item-action', (a) => this.onItemAction(a)),
     ];
 
     this.registry.set('worldMap', this.map);
@@ -148,6 +247,7 @@ export class WorldScene extends BaseScene {
       this.tiles.destroy();
       this.objects.destroy();
       this.ground.destroy();
+      this.enemies.destroy();
       this.registry.set('worldActive', false);
       this.scene.stop('Hud');
     });
@@ -332,6 +432,121 @@ export class WorldScene extends BaseScene {
     return this.cameras.main.getWorldPoint(p.x, p.y);
   }
 
+  // ------------------------------------------------------------ Kampf
+
+  flash(color: number, ms: number): void {
+    if (!Settings.get().screenShake) return;
+    this.flashRect.setFillStyle(color, 0.28);
+    this.tweens.killTweensOf(this.flashRect);
+    this.tweens.add({ targets: this.flashRect, fillAlpha: 0, duration: ms });
+  }
+
+  private decoyExplode(d: MirrorDecoy): void {
+    this.fx.spawn('ring', d.x, d.y - 8, { tint: PAL.pink, scale: 1.2 });
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      this.fx.spawn('sparkle', d.x, d.y - 10, { tint: PAL.pink, vx: Math.cos(a) * 90, vy: Math.sin(a) * 70 });
+    }
+    this.shake(2.5, 140);
+    const st = Game.inv.stats();
+    const mods = Game.prog.mods;
+    this.enemies.hitArea(d.x, d.y - 6, 50, () => specialDamage(st, mods, 2 * d.power), { fromX: d.x, fromY: d.y, kb: 160, src: 'decoy' });
+  }
+
+  private onItemAction(a: UseAction): void {
+    if (a.kind === 'summon') {
+      const def = MONSTER_BY_ID[a.monster];
+      const e = this.enemies.summonAlly(a.monster, this.player.x + 14, this.player.y + 4);
+      if (e && def) this.toast(`${def.name} kämpft jetzt eine Weile an deiner Seite.`);
+    } else if (a.kind === 'throw') {
+      const [dx, dy] = this.player.facing === 'left' ? [-1, 0] : this.player.facing === 'right' ? [1, 0] : this.player.facing === 'up' ? [0, -1] : [0, 1];
+      this.projectiles.spawn({ kind: 'mud', x: this.player.x, y: this.player.y, vx: dx * 200, vy: dy * 200, dmg: 8, team: 'player', life: 0.8 });
+    } else if (a.kind === 'wonder') {
+      this.toast('Dieses Wunder braucht einen besonderen Ort – vielleicht deinen eigenen Garten?');
+    }
+  }
+
+  /** Aura-Taste: kurz = gewählte Technik, halten = Aura-Rad */
+  private updateAuraInput(dt: number): void {
+    if (Input.justPressed('aura')) {
+      this.auraHeld = true;
+      this.auraHold = 0;
+    }
+    if (!this.auraHeld) return;
+    this.auraHold += dt;
+    if (Input.isDown('aura')) {
+      if (!this.wheelOpen && this.auraHold > 0.22) {
+        this.wheelOpen = true;
+        this.wheelSel = null;
+      }
+      if (this.wheelOpen) this.wheelSel = this.wheelSelection();
+    } else {
+      this.auraHeld = false;
+      if (this.wheelOpen) {
+        this.wheelOpen = false;
+        if (this.wheelSel) {
+          Game.prog.technique = this.wheelSel;
+          this.useTechnique(this.wheelSel);
+        }
+      } else this.useTechnique(Game.prog.technique);
+    }
+    this.registry.set('auraWheel', this.wheelOpen ? this.wheelSel ?? 'none' : null);
+  }
+
+  private wheelSelection(): TechniqueId | null {
+    const touch = Input.source === 'touch';
+    const vx = touch ? Input.auraDragX : Input.moveX;
+    const vy = touch ? Input.auraDragY : Input.moveY;
+    if (Math.hypot(vx, vy) < 0.35) return null;
+    const ang = (Math.atan2(-vy, vx) * 180) / Math.PI;
+    let best: TechniqueId | null = null;
+    let bd = 999;
+    for (const t of TECHNIQUES) {
+      let d = Math.abs(ang - t.angle) % 360;
+      if (d > 180) d = 360 - d;
+      if (d < bd) {
+        bd = d;
+        best = t.id;
+      }
+    }
+    return best;
+  }
+
+  private useTechnique(id: TechniqueId): void {
+    const msg = this.player.useTechnique(id);
+    if (msg) this.toast(msg);
+  }
+
+  private onPlayerDied(): void {
+    if (this.dying) return;
+    this.dying = true;
+    this.wheelOpen = false;
+    this.registry.set('auraWheel', null);
+    this.time.delayedCall(1300, () => {
+      this.cameras.main.fadeOut(600, 13, 10, 20);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+        const loss = Game.die();
+        const rest = Game.prog.rest && Game.prog.rest.map === Game.player.map ? Game.prog.rest : { x: this.map.spawnX, y: this.map.spawnY };
+        this.enemies.clear();
+        this.projectiles.clear();
+        this.player.revive(rest.x, rest.y);
+        this.camX = rest.x;
+        this.camY = rest.y - 12;
+        this.updateCamera(0);
+        this.cameras.main.fadeIn(600, 13, 10, 20);
+        this.dying = false;
+        const parts: string[] = [];
+        if (loss.money) parts.push(`${loss.money} Münzen`);
+        if (loss.cards.length) parts.push(`${loss.cards.length} ${loss.cards.length === 1 ? 'Karte' : 'Karten'} aus den freien Slots`);
+        this.message({
+          name: 'Erwacht',
+          text: `Du bist erschöpft zusammengebrochen und am Rastplatz wieder aufgewacht. ${parts.length ? `Verloren: ${parts.join(' und ')}.` : 'Zum Glück hattest du nichts zu verlieren.'} Deine Sammelseiten sind sicher.`,
+        });
+        SaveSystem.autosave();
+      });
+    });
+  }
+
   shake(intensity: number, durationMs: number): void {
     if (!Settings.get().screenShake) return;
     if (intensity >= this.shakeAmp || this.shakeT <= 0) {
@@ -380,7 +595,22 @@ export class WorldScene extends BaseScene {
       this.anims.resumeAll();
     }
 
-    if (!this.messageOpen()) {
+    // Aura-Rad: Zeit läuft verlangsamt
+    const simDt = this.wheelOpen ? dt * 0.25 : dt;
+    const busy = this.messageOpen() || this.dying;
+
+    if (!busy && this.levelUpPending && Game.prog.pending > 0 && !this.wheelOpen) {
+      this.levelUpPending = false;
+      this.openLevelUp();
+      return;
+    }
+
+    if (!busy) {
+      this.updateAuraInput(dt);
+      this.player.frozen = this.wheelOpen;
+    }
+
+    if (!busy) {
       if (Input.justPressed('pause')) {
         this.openPause();
         return;
@@ -390,9 +620,9 @@ export class WorldScene extends BaseScene {
         return;
       }
       if (Input.justPressed('map')) this.toast('Die Weltkarte mit Fog-of-War folgt mit den Regionen.');
-      this.player.update(dt, Input);
+      this.player.update(simDt, Input);
       // Spielzeit, 60-Sekunden-Regel, Effekte
-      Game.tick(dt);
+      Game.tick(simDt);
       this.autosaveT += dt;
       if (this.autosaveT > AUTOSAVE_SECONDS) {
         this.autosaveT = 0;
@@ -405,10 +635,17 @@ export class WorldScene extends BaseScene {
     Game.player.y = this.player.y;
     this.ground.update(dt, this.player.x, this.player.y);
 
+    if (this.dying) this.player.update(dt, Input);
     this.updateCamera(dt);
     const view = this.cameras.main.worldView;
     this.tiles.update(view, dt);
     this.objects.update(view);
+    if (!this.messageOpen()) {
+      this.enemies.update(simDt, time, view);
+      this.projectiles.update(simDt, time);
+      this.decoy.update(simDt, time);
+    }
+    this.numbers.update(dt);
     this.fx.update(dt);
 
     for (const n of this.npcs) {
@@ -431,6 +668,14 @@ export class WorldScene extends BaseScene {
     this.scene.pause();
     this.scene.pause('Hud');
     this.scene.launch('Pause');
+  }
+
+  openLevelUp(): void {
+    Input.setContext('menu');
+    this.scene.pause();
+    this.scene.pause('Hud');
+    this.scene.setVisible(false, 'Hud');
+    this.scene.launch('LevelUp');
   }
 
   openBook(tab?: string): void {
@@ -477,6 +722,23 @@ export class WorldScene extends BaseScene {
       Game.events.emit('book-changed');
     }
     if (Input.keyPressed('F9')) exportTextures(this);
+    if (Input.keyPressed('KeyU')) {
+      this.player.godMode = !this.player.godMode;
+      this.toast(`Unverwundbar ${this.player.godMode ? 'an' : 'aus'}`);
+    }
+    if (Input.keyPressed('KeyL')) Game.gainXp(Game.prog.xpNext - Game.prog.xp);
+    if (Input.keyPressed('KeyK')) {
+      for (const e of this.enemies.list) if (e.active && e.team === 'enemy') this.enemies.damage(e, { dmg: 9999, crit: false }, { fromX: this.player.x, fromY: this.player.y, kb: 0, src: 'special' });
+    }
+    if (Input.keyPressed('KeyJ')) {
+      // Debug: Monster der Wahl neben der Spielfigur
+      const ids = Object.keys(MONSTER_BY_ID);
+      const idx = ((this.registry.get('dbgMon') as number) ?? -1) + 1;
+      this.registry.set('dbgMon', idx % ids.length);
+      const def = MONSTER_BY_ID[ids[idx % ids.length]];
+      this.enemies.spawn(def, this.player.x + 40, this.player.y);
+      this.toast(`Debug: ${def.name}`);
+    }
     if (Input.keyPressed('KeyT') && Input.mouseAiming) {
       const a = this.aimWorld();
       if (a) {

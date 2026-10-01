@@ -51,6 +51,10 @@ Aura-Leiste mit Regeneration. Grundtechniken:
 - **Aura-Sinn** – macht versteckte Gegner, Fallen und Karten sichtbar (Verbrauch über Zeit).
 - **Fokus** – ein Körperteil macht doppelten Schaden, der Rest ist ungeschützt.
 
+Bedienung: Aura-Taste kurz = gewählte Technik, halten = **Aura-Rad** (Zeit verlangsamt, Richtung
+wählt die Technik). Freischaltung: Sinn und Stoss ab Stufe 1, Schild ab 2, Fokus ab 3,
+Spezialtechnik ab 5.
+
 Werte: **LP, Aura, Stärke, Tempo, Aura-Kontrolle.** Beim Level-Up pausiert das Spiel, man
 wählt **1 von 3 farbcodierten Fähigkeitskarten** (Rot = Stärke, Grün = Tempo, Blau = Aura,
 Gold = Affinitäts-Talent).

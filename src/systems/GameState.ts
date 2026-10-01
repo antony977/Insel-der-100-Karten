@@ -2,7 +2,8 @@ import { card } from '../data/cards';
 import type { CardDef } from '../data/cardTypes';
 import { Book, OUTSIDE_SECONDS, type BookSave, MOVE_MESSAGES } from './cards/Book';
 import { CardRegistry, type RegistrySave } from './cards/CardRegistry';
-import { Inventory, type InventorySave } from './cards/Inventory';
+import { Inventory, type InventorySave, type UseAction } from './cards/Inventory';
+import { Progress, type ProgressSave } from './Progress';
 
 export const SAVE_VERSION = 1;
 
@@ -32,6 +33,9 @@ export interface SaveData {
   discovered: string[];
   ground: GroundEntry[];
   groundKey: number;
+  prog?: ProgressSave;
+  clock?: number;
+  day?: number;
 }
 
 type Handler = (...args: never[]) => void;
@@ -45,6 +49,9 @@ export interface GameEvents {
   'ground-changed': () => void;
   'book-changed': () => void;
   'vitals-changed': () => void;
+  'level-up': (level: number) => void;
+  'xp-gained': (xp: number) => void;
+  'item-action': (a: UseAction) => void;
   message: (text: string) => void;
 }
 
@@ -77,6 +84,10 @@ export class GameStateStore {
   ground: GroundEntry[] = [];
   playTime = 0;
   player = { map: 'testwiese', x: 0, y: 0, name: 'Kai' };
+  prog = new Progress();
+  /** Uhrzeit in Spielminuten (0–1439); 1 echte Sekunde = 2 Spielminuten */
+  clock = 8 * 60;
+  day = 1;
   readonly events = new Emitter();
   private groundKey = 1;
   private regenAcc = 0;
@@ -91,6 +102,10 @@ export class GameStateStore {
     this.groundKey = 1;
     this.playTime = 0;
     this.player = { map: 'testwiese', x: 0, y: 0, name: 'Kai' };
+    this.prog = new Progress();
+    this.clock = 8 * 60;
+    this.day = 1;
+    this.syncBonus();
     this.events.emit('book-changed');
     this.events.emit('vitals-changed');
     this.events.emit('ground-changed');
@@ -181,6 +196,11 @@ export class GameStateStore {
   /** Spielzeit läuft (nur wenn die Welt aktiv ist). */
   tick(dt: number): void {
     this.playTime += dt;
+    this.clock += dt * 2;
+    if (this.clock >= 1440) {
+      this.clock -= 1440;
+      this.day++;
+    }
     // 60-Sekunden-Regel für Karten in der Hand
     const expired = this.book.tick(dt);
     for (const uid of expired) {
@@ -231,6 +251,69 @@ export class GameStateStore {
     }
   }
 
+  /** Stufen-/Talentwerte ins Inventar übertragen */
+  syncBonus(): void {
+    this.inv.bonus = this.prog.bonusStats();
+  }
+
+  isNight(): boolean {
+    return this.clock < 5 * 60 || this.clock >= 20 * 60;
+  }
+
+  isFullMoon(): boolean {
+    return this.day % 8 === 4 && this.isNight();
+  }
+
+  /** Erfahrung gutschreiben (Level-Up heilt vollständig). */
+  gainXp(n: number): number {
+    const ups = this.prog.addXp(n);
+    this.events.emit('xp-gained', n);
+    if (ups) {
+      this.syncBonus();
+      const st = this.inv.stats();
+      this.inv.lp = st.lp;
+      this.inv.aura = st.aura;
+      this.events.emit('level-up', this.prog.level);
+      this.events.emit('vitals-changed');
+    }
+    return ups;
+  }
+
+  /** Ein besiegtes Monster wird zur Karte (falls das Limit es erlaubt). */
+  monsterCard(id: string, x: number, y: number): GroundEntry | null {
+    const inst = this.registry.create(id, 'boden');
+    if (!inst) return null;
+    return this.dropToGround({ kind: 'card', id, uid: inst.uid, timeLeft: OUTSIDE_SECONDS, map: this.player.map, x, y });
+  }
+
+  /** Erschöpft: Geld und alle Karten der freien Slots gehen verloren, Sammelseiten bleiben. */
+  die(): { money: number; cards: string[] } {
+    const money = this.inv.money;
+    this.inv.money = 0;
+    const cards: string[] = [];
+    for (let i = 0; i < this.book.frei.length; i++) {
+      const uid = this.book.frei[i];
+      if (uid === null) continue;
+      cards.push(this.registry.idOf(uid));
+      this.book.remove(uid);
+      this.registry.destroy(uid);
+    }
+    // Handkarten verwandeln sich nicht – sie gehen ebenfalls verloren
+    for (const h of [...this.book.hand]) {
+      cards.push(this.registry.idOf(h.uid));
+      this.book.remove(h.uid);
+      this.registry.destroy(h.uid);
+    }
+    this.prog.deaths++;
+    const st = this.inv.stats();
+    this.inv.lp = st.lp;
+    this.inv.aura = st.aura;
+    this.inv.buffs.clear();
+    this.events.emit('book-changed');
+    this.events.emit('vitals-changed');
+    return { money, cards };
+  }
+
   serialize(): SaveData {
     return {
       version: SAVE_VERSION,
@@ -244,6 +327,9 @@ export class GameStateStore {
       discovered: [...this.discovered],
       ground: this.ground.map((g) => ({ ...g })),
       groundKey: this.groundKey,
+      prog: this.prog.serialize(),
+      clock: this.clock,
+      day: this.day,
     };
   }
 
@@ -260,6 +346,11 @@ export class GameStateStore {
     this.groundKey = d.groundKey;
     this.playTime = d.playTime;
     this.player = { ...d.player };
+    this.prog = new Progress();
+    this.prog.load(d.prog);
+    this.clock = d.clock ?? 8 * 60;
+    this.day = d.day ?? 1;
+    this.syncBonus();
     this.events.emit('book-changed');
     this.events.emit('vitals-changed');
     this.events.emit('ground-changed');

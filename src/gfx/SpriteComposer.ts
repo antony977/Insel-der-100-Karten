@@ -43,6 +43,11 @@ export class LabelCanvas {
   readonly dim: Uint8Array;
   private nextPart = 1;
 
+  /** Neue Teil-ID (für prozedural gezeichnete Formen) */
+  newPart(): number {
+    return this.nextPart++;
+  }
+
   constructor(w: number, h: number) {
     this.w = w;
     this.h = h;

@@ -99,11 +99,24 @@ export class TouchControls {
           if (Settings.get().vibration) navigator.vibrate?.(12);
         }
       });
+      if (def.action === 'aura') {
+        // Wischen auf dem Aura-Knopf wählt eine Technik im Aura-Rad
+        el.addEventListener('pointermove', (e) => {
+          if (!pointers.has(e.pointerId)) return;
+          const r = el.getBoundingClientRect();
+          const k = Math.max(30, r.width * 0.7);
+          const dx = (e.clientX - (r.left + r.width / 2)) / k;
+          const dy = (e.clientY - (r.top + r.height / 2)) / k;
+          const l = Math.hypot(dx, dy);
+          Input.setAuraDrag(l > 1 ? dx / l : dx, l > 1 ? dy / l : dy);
+        });
+      }
       const up = (e: PointerEvent) => {
         if (!pointers.delete(e.pointerId)) return;
         if (pointers.size === 0) {
           Input.release(def.action, 'touch');
           el.classList.remove('pressed');
+          if (def.action === 'aura') setTimeout(() => Input.setAuraDrag(0, 0), 50);
         }
       };
       el.addEventListener('pointerup', up);

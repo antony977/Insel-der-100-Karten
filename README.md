@@ -5,8 +5,9 @@ Auf einer geheimnisvollen Insel ist alles eine Karte – Ziel ist es, alle 100 S
 ins eigene Kartenbuch zu bekommen. Alle Grafiken, Schriften und (später) Sounds werden per Code
 erzeugt. Das Spieldesign steht in [DESIGN.md](DESIGN.md).
 
-**Stand:** Meilenstein 2 – Kartenbuch mit allen Regeln (100 Sammel-Slots, 45 freie Slots, Ränge,
-Limits, „Entfessle!", 60-Sekunden-Regel), Truhen, Wunschbrunnen und Speichersystem.
+**Stand:** Meilenstein 3 – Echtzeitkampf mit Aura-System, 35 Monsterarten, die sich beim Besiegen
+in ihre Karten verwandeln, Level-Up mit Fähigkeitskarten. Dazu das Kartenbuch mit allen Regeln
+(Meilenstein 2) und das Speichersystem.
 
 ## Starten
 
@@ -54,10 +55,29 @@ Der Workflow `.github/workflows/deploy.yml` baut das Spiel und veröffentlicht e
 | Pause | Esc | Start | Pause-Knopf |
 
 - **Aufladeangriff:** Angriff gedrückt halten und loslassen (goldener Schlag).
-- **Combo:** Angriff dreimal im Rhythmus drücken.
+- **Combo:** Angriff dreimal im Rhythmus drücken – der dritte Schlag trifft am härtesten.
+- **Ausweichrolle:** kurz unverwundbar – ideal, um hinter gepanzerte Gegner zu kommen.
 - **Zielen mit der Maus:** Mausbewegung schaltet auf Zielen um (Fadenkreuz).
 - Die Eingabe wechselt automatisch und live zwischen Tastatur, Maus, Touch und Gamepad.
 - Tastenbelegung, Touch-Grösse/-Deckkraft, Linkshänder-Modus usw. unter **Einstellungen**.
+
+## Kampf und Aura
+
+- **Aura-Taste kurz drücken:** gewählte Technik auslösen bzw. ein-/ausschalten.
+- **Aura-Taste halten:** das **Aura-Rad** öffnet sich (die Zeit läuft langsamer). Richtung wählen
+  (Tastatur/Stick; auf dem Handy auf dem Aura-Knopf in die Richtung wischen) und loslassen.
+- Techniken: **Aura-Sinn** (zeigt Getarntes und Unsichtbares), **Aura-Stoss** (Fernangriff),
+  **Aura-Schild** (ab Stufe 2, Schaden stark verringert, hoher Verbrauch), **Fokus** (ab Stufe 3,
+  doppelter Schaden, aber verwundbarer), **Spezialtechnik** (ab Stufe 5, je nach Affinität:
+  Bodenstampfer, Blitzkette, Widerhall, Aura-Netz oder Spiegelbild).
+- **Level-Up:** Das Spiel pausiert, du wählst 1 von 3 Fähigkeitskarten – Rot (Stärke), Grün (Tempo),
+  Blau (Aura) oder Gold (Talent deiner Affinität, 3 Zweige × 4 Stufen).
+- **Monster werden zu Karten:** Besiegte Monster verwandeln sich mit etwas Glück in ihre
+  Sammelkarte (nur solange das Limit nicht erreicht ist). Manche Monster brauchen einen Trick:
+  Wiesenflitzer in die Enge treiben, Zangenkrabben von hinten treffen, Trugbilder mit Aura-Sinn …
+- **Entfesselte Monsterkarten** rufen das Monster als Begleiter herbei.
+- **Ohnmacht:** Bei 0 LP wachst du am Rastplatz auf – Geld und die Karten der freien Slots sind weg,
+  die Sammelseiten bleiben.
 
 ### Im Kartenbuch
 
@@ -88,6 +108,9 @@ Der Workflow `.github/workflows/deploy.yml` baut das Spiel und veröffentlicht e
 
 - **Lumi** (neben dem Startpunkt) ansprechen → 3 Startkarten.
 - **4 Truhen** sind versteckt (beim Haus, im Garten, im Wald, am See).
+- **Monster:** Wollknäuel und Hüpfpilze südlich des Wegs, Blattschnapper (getarnt als Busch),
+  ein Wiesenflitzer im Südosten, Kieselkrebse am Fluss, Schlammkröten und eine Zangenkrabbe am See,
+  Stachelschwalben im Osten und ein Tintenkobold beim Platz (klaut Münzen!).
 - **Wunschbrunnen:** 10 Münzen einwerfen → zufällige Karte (seltene Ränge sind selten).
 
 ## Speichern
@@ -107,6 +130,10 @@ Der Workflow `.github/workflows/deploy.yml` baut das Spiel und veröffentlicht e
 | F6 | Testtreffer (Rückstoss, Hit-Stop) |
 | F7 | Zufällige Karte in die Hand |
 | F8 | 10 zufällige Sammelkarten direkt ins Buch |
+| U | Unverwundbar an/aus |
+| L | Sofort eine Stufe aufsteigen |
+| K | Alle Monster in der Nähe besiegen |
+| J | Nächste Monsterart neben dir erscheinen lassen |
 | F9 | Alle generierten Grafiken als PNG-Vorlage öffnen |
 | T | Zum Mauszeiger teleportieren |
 
@@ -129,10 +156,12 @@ src/
               Speicherplätze, Dialog
   systems/    Anzeige/Skalierung, Einstellungen, Spielzustand, Speichersystem, Effekt-Pool
   systems/cards/  Karten-Register (Limits), Buch (Slots, Hand, 60-s-Regel), Inventar
-  entities/   Spielfigur (später Monster, NPCs, Rivalen)
+  systems/combat/ Schaden, Monster-KI und Spawn-Zonen, Geschosse, Schadenszahlen
+  entities/   Spielfigur, Monster
   input/      Aktionen, Eingabe-Manager (Tastatur/Maus/Gamepad), Touch-Overlay
   world/      Kartendaten, Terrain, Tile-Streaming, Objekt-Streaming, Boden-Karten
-  data/       datengetriebene Inhalte (100 Sammelkarten, 40 Zauber, Truhen, Weltobjekte, Testkarte)
+  data/       datengetriebene Inhalte (100 Sammelkarten, 40 Zauber, 35 Monster, Aura-Techniken,
+              Talente, Truhen, Weltobjekte, Testkarte)
   gfx/        Palette, Pixel-Schrift, Grafik-Generatoren, Asset-Loader
   ui/         Text, Rahmen, Menüs
   audio/      (Meilenstein 5)

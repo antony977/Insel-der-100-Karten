@@ -12,6 +12,11 @@ export const FX = {
   dust: { texture: 'fx-dust', frames: 4, fps: 14 },
   sparkle: { texture: 'fx-sparkle', frames: 4, fps: 16, blend: Phaser.BlendModes.ADD },
   impact: { texture: 'fx-impact', frames: 3, fps: 20, blend: Phaser.BlendModes.ADD },
+  ring: { texture: 'fx-ring', frames: 4, fps: 16, blend: Phaser.BlendModes.ADD },
+  roots: { texture: 'fx-roots', frames: 3, fps: 8 },
+  poof: { texture: 'fx-poof', frames: 4, fps: 12 },
+  crit: { texture: 'fx-crit', frames: 3, fps: 16, blend: Phaser.BlendModes.ADD },
+  coin: { texture: 'fx-coin', frames: 4, fps: 14 },
 } satisfies Record<string, FxDef>;
 
 export type FxName = keyof typeof FX;

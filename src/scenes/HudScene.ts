@@ -13,6 +13,9 @@ import type { WorldMap } from '../world/WorldMap';
 import { Game } from '../systems/GameState';
 import { cardIndex } from '../data/cards';
 import { OUTSIDE_SECONDS } from '../systems/cards/Book';
+import { TECHNIQUES, TECH_BY_ID, AFFINITY_BY_ID, type TechniqueId } from '../data/aura';
+
+const TECH_ICON: Record<TechniqueId, number> = { sinn: 9, stoss: 14, schild: 1, fokus: 0, spezial: 13 };
 
 export const HUD_EVENTS = {
   toast: 'hud-toast',
@@ -70,6 +73,16 @@ export class HudScene extends BaseScene {
   private pointerTapped = false;
   private hintT = 0;
   private fpsAcc = 0;
+  private xpFill!: Phaser.GameObjects.Rectangle;
+  private levelText!: Phaser.GameObjects.BitmapText;
+  private techIcon!: Phaser.GameObjects.Image;
+  private techText!: Phaser.GameObjects.BitmapText;
+  private techFrame!: Phaser.GameObjects.NineSlice;
+  private wheel!: Phaser.GameObjects.Container;
+  private wheelItems: { id: TechniqueId; bg: Phaser.GameObjects.NineSlice; icon: Phaser.GameObjects.Image; label: Phaser.GameObjects.BitmapText }[] = [];
+  private wheelCenter!: Phaser.GameObjects.BitmapText;
+  private vignette!: Phaser.GameObjects.Graphics;
+  private activeIcons: Phaser.GameObjects.Image[] = [];
 
   constructor() {
     super('Hud');
@@ -81,7 +94,7 @@ export class HudScene extends BaseScene {
     this.slots = [];
 
     // --- Werte oben links ---
-    addPanel(this, 4, 4, 112, 40);
+    addPanel(this, 4, 4, 112, 52);
     this.add.image(10, 10, 'ui-icons', 0).setOrigin(0, 0);
     this.add.rectangle(22, 11, 86, 7, PAL.ink).setOrigin(0, 0);
     this.lpFill = this.add.rectangle(23, 12, 84, 5, PAL.red).setOrigin(0, 0);
@@ -92,6 +105,23 @@ export class HudScene extends BaseScene {
     this.add.rectangle(23, 23, 84, 1, PAL.ice).setOrigin(0, 0);
     this.add.image(10, 31, 'ui-icons', 2).setOrigin(0, 0);
     this.money = addText(this, 22, 29, '0', { font: 'px-s', color: PAL.gold });
+    // Stufe + Erfahrung
+    this.levelText = addText(this, 108, 30, '', { font: 'px', ox: 1, color: PAL.ice });
+    this.add.rectangle(10, 44, 98, 5, PAL.ink).setOrigin(0, 0);
+    this.xpFill = this.add.rectangle(11, 45, 96, 3, PAL.violet).setOrigin(0, 0);
+    this.add.rectangle(11, 45, 96, 1, PAL.pink).setOrigin(0, 0).setAlpha(0.5);
+    // gewählte Aura-Technik
+    this.techFrame = addPanel(this, 120, 4, 26, 26, 'ui-frame');
+    this.techIcon = this.add.image(133, 17, 'ability-icons', 9);
+    this.techText = addText(this, 133, 31, '', { font: 'px-o', ox: 0.5, color: PAL.silver });
+    this.techFrame.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+      const w = this.scene.get('World') as unknown as { player?: { useTechnique(id: TechniqueId): string | null } };
+      const m = w.player?.useTechnique(Game.prog.technique);
+      if (m) this.toast(m);
+    });
+    this.activeIcons = [0, 1, 2].map((i) => this.add.image(152 + i * 12, 10, 'ability-icons', 9).setOrigin(0, 0).setScale(0.625).setVisible(false));
+    this.buildWheel();
+    this.vignette = this.add.graphics().setDepth(-1);
 
     // --- Sammelfortschritt (oben Mitte) ---
     addPanel(this, GAME_W / 2 - 34, 4, 68, 18);
@@ -134,8 +164,8 @@ export class HudScene extends BaseScene {
 
     // --- Hinweise / FPS / Debug ---
     this.hint = addText(this, 6, GAME_H - 14, '', { font: 'px-o', color: PAL.silver });
-    this.fps = addText(this, 6, 47, '', { font: 'px-o', color: PAL.lime });
-    this.debugText = addText(this, 6, 60, '', { font: 'px-o', color: PAL.white }).setVisible(false);
+    this.fps = addText(this, 6, 59, '', { font: 'px-o', color: PAL.lime });
+    this.debugText = addText(this, 6, 72, '', { font: 'px-o', color: PAL.white }).setVisible(false);
 
     // --- Meldungsfenster ---
     this.buildMessageBox();
@@ -156,6 +186,43 @@ export class HudScene extends BaseScene {
     this.input.on('pointerdown', () => {
       if (this.msgBox.visible) this.pointerTapped = true;
     });
+  }
+
+  /** Aura-Rad: halten der Aura-Taste + Richtung wählt eine Technik */
+  private buildWheel(): void {
+    this.wheel = this.add.container(GAME_W / 2, GAME_H / 2 - 8).setDepth(40).setVisible(false);
+    const disc = this.add.circle(0, 0, 62, PAL.ink, 0.55);
+    this.wheel.add(disc);
+    this.wheelItems = [];
+    for (const t of TECHNIQUES) {
+      const a = (t.angle * Math.PI) / 180;
+      const x = Math.cos(a) * 44;
+      const y = -Math.sin(a) * 40;
+      const bg = addPanel(this, x - 14, y - 14, 28, 28, 'ui-frame');
+      const icon = this.add.image(x, y - 1, 'ability-icons', TECH_ICON[t.id]);
+      const label = addText(this, x, y + 15, t.short, { font: 'px-o', ox: 0.5, color: PAL.white });
+      this.wheel.add([bg, icon, label]);
+      this.wheelItems.push({ id: t.id, bg, icon, label });
+    }
+    this.wheelCenter = addText(this, 0, -4, '', { font: 'px-o', ox: 0.5, color: PAL.gold, align: 'center' });
+    this.wheel.add(this.wheelCenter);
+  }
+
+  private updateWheel(): void {
+    const st = this.registry.get('auraWheel') as TechniqueId | 'none' | null;
+    const open = st !== null && st !== undefined;
+    this.wheel.setVisible(open);
+    if (!open) return;
+    for (const it of this.wheelItems) {
+      const unlocked = Game.prog.unlocked(it.id);
+      const sel = st === it.id;
+      it.bg.setTexture(sel ? 'ui-frame-select' : 'ui-frame');
+      it.icon.setTint(unlocked ? (sel ? AFFINITY_BY_ID[Game.prog.affinity].color : PAL.white) : PAL.stone);
+      it.label.setText(unlocked ? (it.id === 'spezial' ? Game.prog.techName : TECH_BY_ID[it.id].short) : `Stufe ${TECH_BY_ID[it.id].unlock}`);
+      it.label.setTint(unlocked ? (sel ? PAL.gold : PAL.white) : PAL.mist);
+    }
+    const t = st && st !== 'none' ? TECH_BY_ID[st] : null;
+    this.wheelCenter.setText(t ? (t.cost ? `${t.cost} Aura` : `${t.drain}/s`) : 'Richtung\nwählen');
   }
 
   private buildMinimapTexture(): void {
@@ -251,10 +318,10 @@ export class HudScene extends BaseScene {
     const k = (a: keyof typeof b) => keyLabel(b[a][0] ?? '?');
     if (s === 'keyboard' || s === 'mouse') {
       this.hint.setText(
-        `${k('up')}${k('left')}${k('down')}${k('right')} Laufen · ${k('attack')} Angriff · ${k('dodge')} Rolle · ${k('aura')} Aura · ${k('book')} Buch · ${k('pause')} Pause`,
+        `${k('up')}${k('left')}${k('down')}${k('right')} Laufen · ${k('attack')} Angriff · ${k('dodge')} Rolle · ${k('aura')} Aura (halten: Aura-Rad) · ${k('book')} Buch · ${k('pause')} Pause`,
       );
     } else if (s === 'gamepad') {
-      this.hint.setText('Stick Laufen · A Angriff · B Rolle · X Aura · Y Buch · Start Pause');
+      this.hint.setText('Stick Laufen · A Angriff · B Rolle · X Aura (halten: Rad) · Y Buch · Start Pause');
     } else {
       this.hint.setText('');
     }
@@ -343,8 +410,9 @@ export class HudScene extends BaseScene {
             `Zelle ${pos ? pos.join(', ') : '-'}`,
             `Eingabe ${Input.source} · Render ×${Display.renderScale}`,
             `Objekte aktiv ${this.registry.get('activeObjects') ?? 0}`,
-            'F2 Kollision · F3 Noclip · F4 Aura-Farbe',
-            'F6 Treffer · F9 Grafiken · T Teleport (Maus)',
+            'F2 Kollision · F3 Noclip · F4 Aura-Farbe · F6 Treffer',
+            'F7 Karte · F8 10 Karten · F9 Grafiken · T Teleport',
+            'U Unverwundbar · L Stufe · K Gegner besiegen · J Monster',
           ].join('\n'),
         );
       }
@@ -355,6 +423,26 @@ export class HudScene extends BaseScene {
     }
     this.updateStats();
     this.updateHand(time);
+    this.updateWheel();
+    this.updateVignette(time);
+  }
+
+  private updateVignette(time: number): void {
+    const inv = Game.inv;
+    const low = inv.lp > 0 && inv.lp < inv.stats().lp * 0.25;
+    this.vignette.clear();
+    if (!low) return;
+    const a = 0.18 + Math.sin(time / 180) * 0.08;
+    this.vignette.fillStyle(PAL.crimson, a);
+    this.vignette.fillRect(0, 0, GAME_W, 6);
+    this.vignette.fillRect(0, GAME_H - 6, GAME_W, 6);
+    this.vignette.fillRect(0, 0, 6, GAME_H);
+    this.vignette.fillRect(GAME_W - 6, 0, 6, GAME_H);
+    this.vignette.fillStyle(PAL.crimson, a * 0.5);
+    this.vignette.fillRect(6, 6, GAME_W - 12, 4);
+    this.vignette.fillRect(6, GAME_H - 10, GAME_W - 12, 4);
+    this.vignette.fillRect(6, 10, 4, GAME_H - 20);
+    this.vignette.fillRect(GAME_W - 10, 10, 4, GAME_H - 20);
   }
 
   private updateStats(): void {
@@ -366,6 +454,27 @@ export class HudScene extends BaseScene {
     if (this.money.text !== money) this.money.setText(money);
     const prog = `${Game.book.collectedCount()}/100`;
     if (this.progress.text !== prog) this.progress.setText(prog);
+    const p = Game.prog;
+    this.xpFill.width = Math.max(0, Math.round((96 * p.xp) / p.xpNext));
+    const lv = `St. ${p.level}`;
+    if (this.levelText.text !== lv) this.levelText.setText(lv);
+    const tech = p.technique;
+    this.techIcon.setFrame(TECH_ICON[tech]);
+    const w = this.scene.get('World') as unknown as { player?: { sense: boolean; shieldOn: boolean; focusT: number } };
+    const pl = w.player;
+    const col = AFFINITY_BY_ID[p.affinity].color;
+    this.techIcon.setTint(p.unlocked(tech) ? col : PAL.stone);
+    const label = tech === 'spezial' ? 'Spezial' : TECH_BY_ID[tech].short;
+    if (this.techText.text !== label) this.techText.setText(label);
+    // aktive Dauertechniken
+    const act: TechniqueId[] = [];
+    if (pl?.sense) act.push('sinn');
+    if (pl?.shieldOn) act.push('schild');
+    if (pl && pl.focusT > 0) act.push('fokus');
+    this.activeIcons.forEach((ic, i) => {
+      ic.setVisible(i < act.length);
+      if (i < act.length) ic.setFrame(TECH_ICON[act[i]]).setTint(act[i] === 'fokus' ? PAL.red : col);
+    });
   }
 
   /** Handkarten mit Countdown – erinnern daran, Karten ins Buch zu legen. */

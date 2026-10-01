@@ -217,6 +217,19 @@ export function buildTestMap(seed = 7): WorldMap {
       } else if (t === T.SAND && r < 0.04) m.setDecor(x, y, 'slab');
     }
   }
+  // Monster-Gebiete (Kampftest)
+  const zone = (monster: string, tx: number, ty: number, r: number, count: number, respawn = 30) =>
+    m.spawns.push({ monster, x: tx * TILE + 8, y: ty * TILE + 8, r, count, respawn });
+  zone('wollknaeuel', 24, 50, 56, 3);
+  zone('huepfpilz', 40, 52, 64, 4);
+  zone('blattschnapper', 58, 47, 50, 2);
+  zone('wiesenflitzer', 82, 54, 60, 1, 60);
+  zone('kieselkrebs', 63, 58, 40, 3);
+  zone('schlammkroete', 76, 30, 44, 2);
+  zone('stachelschwalbe', 86, 42, 60, 2);
+  zone('tintenkobold', 42, 24, 40, 1, 60);
+  zone('zangenkrabbe', 78, 22, 30, 1, 60);
+
   m.computeSolid();
   return m;
 }

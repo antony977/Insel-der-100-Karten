@@ -26,6 +26,14 @@ export class GroundItems {
   private readonly blocked = new Set<number>();
   private t = 0;
   private readonly off: () => void;
+  private pullT = 0;
+  private pullR = 0;
+
+  /** Karten im Umkreis zur Spielfigur fliegen lassen (Aura-Netz) */
+  pull(radius: number): void {
+    this.pullT = 1.4;
+    this.pullR = radius;
+  }
 
   constructor(scene: Phaser.Scene, map: string) {
     this.scene = scene;
@@ -69,8 +77,19 @@ export class GroundItems {
   update(dt: number, px: number, py: number): void {
     this.t += dt;
     let pick: number | null = null;
+    if (this.pullT > 0) this.pullT -= dt;
     for (const l of this.live.values()) {
       const e = l.entry;
+      if (this.pullT > 0) {
+        const dd = Math.hypot(px - e.x, py - e.y);
+        if (dd < this.pullR && dd > 2) {
+          const sp = Math.min(dd, 190 * dt);
+          e.x += ((px - e.x) / dd) * sp;
+          e.y += ((py - e.y) / dd) * sp;
+          l.shadow.setPosition(e.x, e.y + 1);
+          this.blocked.delete(e.key);
+        }
+      }
       const bob = Math.round(Math.sin(this.t * 3 + l.phase) * 1.5);
       l.sprite.setPosition(e.x, e.y - 1 - Math.max(0, bob));
       l.sprite.setDepth(e.y);

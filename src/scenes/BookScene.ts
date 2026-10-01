@@ -572,7 +572,7 @@ export class BookScene extends BaseScene {
       this.text(x, y + 120, `Platz: ${SLOT_LABELS[u.slot]}`, INK);
       this.buttons.push({ label: e.equipped ? 'Ablegen' : 'Ausrüsten', run: () => this.doUse(c.id), enabled: true });
     } else {
-      const usable = ['heal', 'aura', 'restore', 'buff'].includes(u.kind);
+      const usable = ['heal', 'aura', 'restore', 'buff', 'companion', 'throw'].includes(u.kind);
       this.buttons.push({ label: 'Benutzen', run: () => this.doUse(c.id), enabled: usable });
     }
   }
@@ -741,6 +741,7 @@ export class BookScene extends BaseScene {
   private doUse(id: string): void {
     const r = Game.inv.use(id);
     this.flash(r.message);
+    if (r.action) Game.events.emit('item-action', r.action);
     Game.events.emit('vitals-changed');
     this.render();
   }
