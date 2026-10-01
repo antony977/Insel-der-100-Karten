@@ -36,6 +36,7 @@ import type { WorldApi } from '../systems/Dialog';
 import type { Enemy } from '../entities/Enemy';
 import { castSpell, type SpellHost } from '../systems/Spells';
 import '../data/dialogs';
+import '../data/maps/dungeons';
 import { Atmosphere, ambientFor, type Light } from '../world/Atmosphere';
 import { baseWeather, regionWeather, type BaseWeather } from '../systems/Weather';
 import { modulesFor, setWorldHost, type WorldHost, type WorldModule } from '../systems/WorldModules';
@@ -139,6 +140,7 @@ export class WorldScene extends BaseScene {
   private hudTimer: { label: string; left: number } | null = null;
   private questTarget: [number, number] | null = null;
   private lightList: Light[] = [];
+  private readonly extraLights: Light[] = [];
 
   constructor() {
     super('World');
@@ -227,6 +229,7 @@ export class WorldScene extends BaseScene {
     this.atmo = new Atmosphere(this);
     this.hudTimer = null;
     this.questTarget = null;
+    this.extraLights.length = 0;
     this.registry.set('hudTimer', null);
     this.registry.set('questTarget', null);
     this.host = this.makeHost();
@@ -458,6 +461,7 @@ export class WorldScene extends BaseScene {
       },
       after: (ms, fn) => this.time.delayedCall(ms, fn),
       syncNpcs: () => this.syncNpcs(),
+      extraLights: this.extraLights,
     };
   }
 
@@ -652,6 +656,11 @@ export class WorldScene extends BaseScene {
       case 'pickup':
       case 'spot':
         return this.useSpot(o, idx);
+      case 'talk': {
+        const id = o.tag?.startsWith('talk:') ? o.tag.slice(5) : '';
+        if (id) this.openTalk(id, NPCS.some((n) => n.id === id) ? id : undefined);
+        break;
+      }
       case 'crystal':
         this.message({ name: 'Kristall', text: 'Ein leuchtender Kristall. Mit einem kräftigen Aufladeschlag liesse er sich vielleicht abbauen.' });
         break;
@@ -731,6 +740,16 @@ export class WorldScene extends BaseScene {
       this.fadeTeleport(sp.x, sp.y, target === 'klippen' ? 'Das Boot gleitet über die Wellen zu den Möwenklippen …' : 'Zurück nach Möwenhafen …');
       return;
     }
+    if (target === 'seeinsel' || target === 'seeufer') {
+      // Wolkenfloss über den Silbersee
+      if (target === 'seeinsel' && !Game.hasThing('006')) {
+        this.message({ name: 'Silbersee', text: 'Ein alter Anleger. Die kleine Insel in der Seemitte ist zum Schwimmen zu weit – mit einem Floss wäre es ein Katzensprung.' });
+        return;
+      }
+      const sp = this.map.spawnPoints[`warp:${target}`];
+      if (sp) this.fadeTeleport(sp.x, sp.y, target === 'seeinsel' ? 'Das Wolkenfloss trägt dich lautlos über den See …' : 'Zurück ans Ufer.');
+      return;
+    }
     if (target === 'insel-zurueck') target = 'insel';
     if (!hasMap(target)) {
       this.message({ name: 'Versperrt', text: 'Ein kalter Luftzug weht dir entgegen. Dieser Weg öffnet sich später.' });
@@ -761,6 +780,11 @@ export class WorldScene extends BaseScene {
     this.warping = true;
     Sound.play('door', { rate: 0.8 });
     const from = Game.player.map;
+    if (from === 'insel') {
+      // Rückkehrpunkt merken (falls die Zielkarte keinen Eingang auf der Insel hat)
+      Game.vars.set('rueck-x', Math.round(this.player.x));
+      Game.vars.set('rueck-y', Math.round(this.player.y + 10));
+    }
     SaveSystem.autosave();
     this.cameras.main.fadeOut(300, 13, 10, 20);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
@@ -773,6 +797,9 @@ export class WorldScene extends BaseScene {
         if (i >= 0) {
           tx = lm.map.objects[i].x;
           ty = lm.map.objects[i].y + 14;
+        } else if (Game.vars.has('rueck-x')) {
+          tx = Game.vars.get('rueck-x') ?? 0;
+          ty = Game.vars.get('rueck-y') ?? 0;
         }
       }
       this.scene.restart({ continue: true, warp: { map: target, x: tx, y: ty } });
@@ -842,7 +869,7 @@ export class WorldScene extends BaseScene {
     }
     const s = SPOTS[tag];
     if (!s) return false;
-    if (s.hidden && !this.player.sense) return false;
+    if (s.hidden && !this.player.sense && !Game.inv.tools.has('linse')) return false;
     if (s.needs && !Game.hasThing(s.needs)) {
       this.message({ name: 'Glitzernde Stelle', text: 'Hier liegt etwas vergraben. Mit einer Schaufel könntest du graben.' });
       return true;
@@ -853,6 +880,11 @@ export class WorldScene extends BaseScene {
     this.map.removeObject(idx);
     this.objects.refresh(idx);
     if (s.card) Game.giveCard(s.card);
+    if (s.money) {
+      Game.inv.money += s.money;
+      Game.events.emit('vitals-changed');
+      Sound.play('coin');
+    }
     this.toast(s.text);
     for (let i = 0; i < 8; i++) this.fx.spawn('sparkle', o.x, o.y - 6, { tint: PAL.gold, vx: (Math.random() - 0.5) * 60, vy: -40 });
     if (tag === 'geheim:glocke' && Game.quests.stage('q-glocke') === 1) Game.quests.set('q-glocke', 2);
@@ -1091,6 +1123,44 @@ export class WorldScene extends BaseScene {
     }
   }
 
+  private gadgetT = 0;
+
+  /** Fernglas (Minikarte zeigt Monster und Karten) und Sternenkompass (Pfeil zur fehlenden Karte) */
+  private updateGadgets(dt: number): void {
+    this.gadgetT -= dt;
+    if (this.gadgetT > 0) return;
+    this.gadgetT = 0.3;
+    const tools = Game.inv.tools;
+    if (tools.has('fernglas')) {
+      const dots: [number, number, number][] = [];
+      for (const e of this.enemies.list) if (e.active && e.team === 'enemy' && e.state !== 'hidden') dots.push([Math.floor(e.x / TILE), Math.floor(e.y / TILE), 0]);
+      for (const g of Game.ground) if (g.map === Game.player.map) dots.push([Math.floor(g.x / TILE), Math.floor(g.y / TILE), 1]);
+      this.registry.set('radar', dots);
+    } else this.registry.set('radar', null);
+    if (tools.has('sternenkompass')) {
+      const missing = (id: string) => {
+        const c = ALL_CARDS.find((x) => x.id === id);
+        return !!c && c.kind === 'sammel' && Game.book.sammel[c.no] === null && Game.registry.canCreate(id);
+      };
+      let best: [number, number] | null = null;
+      let bd = 1e12;
+      this.map.objects.forEach((o) => {
+        if (o.hidden || !o.tag) return;
+        let wants = false;
+        if (o.def.interact === 'chest' && !Game.flags.has(`offen:${o.tag}`)) wants = (TREASURES[o.tag]?.cards ?? []).some(missing);
+        else if (o.tag.startsWith('pickup:')) wants = missing(PICKUPS[o.tag.split(':')[1]]?.card ?? '');
+        else if (SPOTS[o.tag]?.card) wants = missing(SPOTS[o.tag].card!);
+        if (!wants) return;
+        const d = (o.x - this.player.x) ** 2 + (o.y - this.player.y) ** 2;
+        if (d < bd) {
+          bd = d;
+          best = [o.x, o.y];
+        }
+      });
+      this.registry.set('compassTarget', best);
+    } else this.registry.set('compassTarget', null);
+  }
+
   /** Wetter der aktuellen Region */
   weatherNow(): string {
     const ov = Game.vars.get('wetter-bis');
@@ -1120,6 +1190,7 @@ export class WorldScene extends BaseScene {
       if (p.lightOn) L.push({ x: p.x, y: p.y - 10, radius: Game.inv.tools.has('ewige-laterne') ? 96 : 72, color: 0xffe2a0 });
       else L.push({ x: p.x, y: p.y - 10, radius: 30, color: 0x8a96c8, alpha: 0.6 });
       if (p.sense) L.push({ x: p.x, y: p.y - 10, radius: 40, color: p.auraColor, alpha: 0.5 });
+      for (const l of this.extraLights) L.push(l);
       for (const e of this.enemies.list) {
         if (!e.active || e.state === 'dead') continue;
         const id = e.def.id;
@@ -1214,10 +1285,12 @@ export class WorldScene extends BaseScene {
     this.updateAtmosphere(dt, view);
     this.game.events.emit('world-update', dt, time);
     // versteckte Stellen nur mit Aura-Sinn sichtbar
+    const reveal = this.player.sense || Game.inv.tools.has('linse');
     for (const i of this.hiddenSpots) {
       const s = this.objects.spriteOf(i);
-      if (s) s.setAlpha(this.player.sense ? 0.6 + Math.sin(time / 150) * 0.4 : 0);
+      if (s) s.setAlpha(reveal ? 0.6 + Math.sin(time / 150) * 0.4 : 0);
     }
+    this.updateGadgets(dt);
 
     const aim = this.aimWorld();
     this.crosshair.setVisible(!!aim && !this.messageOpen());

@@ -136,6 +136,8 @@ export const MONSTERS: MonsterDef[] = [
   m({ id: 'seitenfresser', name: 'Seitenfresser', card: '049', sprite: 'seitenfresser', level: 24, hp: 160, atk: 30, def: 7, speed: 56, xp: 70, money: [20, 40], behavior: ['melee', 'wander'], aggro: 110, reach: 15, radius: 9, drop: 0.25, special: { eatsCards: true }, text: 'Frisst Karten aus freien Slots, wenn er dich erwischt!' }),
   m({ id: 'tintenschatten', name: 'Tintenschatten', card: '050', sprite: 'tintenschatten', level: 25, hp: 130, atk: 32, def: 5, speed: 60, xp: 72, money: [20, 40], behavior: ['flyer', 'ranged', 'teleport'], aggro: 140, reach: 0, radius: 9, drop: 0.25, ranged: { proj: 'ink', speed: 130, cooldown: 2, count: 3, spread: 0.5, range: 150 }, text: 'Schatten aus verlaufener Tinte. Taucht hier und dort auf.' }),
   m({ id: 'kartensoldat', name: 'Kartensoldat', card: '059', sprite: 'kartensoldat', level: 24, hp: 150, atk: 30, def: 8, speed: 48, xp: 64, money: [18, 36], behavior: ['pack', 'melee', 'charge'], aggro: 120, reach: 18, radius: 9, drop: 0.3, text: 'Marschiert in Formation. Die Lanze sticht weit.' }),
+  // ------------------------------------------------------------ Training (keine Karte)
+  m({ id: 'strohpuppe', name: 'Strohpuppe', card: '', sprite: 'strohpuppe', level: 1, hp: 30, atk: 0, def: 0, speed: 0, xp: 2, money: [0, 0], behavior: ['passive'], aggro: 0, reach: 0, radius: 8, drop: 0, text: 'Trainingspuppe aus Stroh.' }),
 ];
 
 export const MONSTER_BY_ID: Record<string, MonsterDef> = Object.fromEntries(MONSTERS.map((d) => [d.id, d]));

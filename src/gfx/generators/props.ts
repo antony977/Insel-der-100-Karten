@@ -816,3 +816,70 @@ export function sparkleSpot(): Raster {
   }
   return strip(frames);
 }
+
+// ---------------------------------------------------------------------------
+// Meilenstein 6: Quest-Objekte
+// ---------------------------------------------------------------------------
+
+/** Liegende Sphinx aus Sandstein 56×44, Fusspunkt (28, 42) */
+export function sphinx(): Raster {
+  const b = new Raster(56, 44);
+  const st: Ramp = [PAL.tan, PAL.sandShade, PAL.sand, PAL.sandLight];
+  // Sockel
+  shadedRect(b, 2, 34, 52, 8, st);
+  hline(b, 2, 54, 34, st[3]);
+  // Körper (liegend)
+  b.ellipse(32, 28, 18, 7, st[2]);
+  b.ellipse(30, 25, 14, 4, st[3]);
+  // Vorderpfoten
+  b.fillRect(6, 29, 14, 4, st[2]);
+  hline(b, 6, 20, 29, st[3]);
+  b.fillRect(6, 32, 14, 2, st[1]);
+  // Kopf mit Kopftuch
+  b.ellipse(16, 14, 8, 9, st[2]);
+  b.fillRect(8, 12, 3, 12, PAL.teal);
+  b.fillRect(21, 12, 3, 12, PAL.teal);
+  for (let y = 12; y < 24; y += 3) {
+    hline(b, 8, 10, y, PAL.gold);
+    hline(b, 21, 23, y, PAL.gold);
+  }
+  b.fillRect(10, 5, 12, 4, PAL.teal);
+  hline(b, 10, 21, 6, PAL.gold);
+  // Gesicht
+  b.ellipse(16, 15, 5, 6, st[3]);
+  b.set(14, 14, PAL.ink);
+  b.set(18, 14, PAL.ink);
+  b.set(14, 13, PAL.cyan);
+  b.set(18, 13, PAL.cyan);
+  hline(b, 15, 17, 19, st[0]);
+  // Schwanz
+  for (let t = 0; t < 8; t++) b.set(49 + Math.round(Math.sin(t / 2) * 1.5), 30 - t, st[1]);
+  // Hieroglyphen-Muster auf dem Sockel
+  for (let x = 6; x < 52; x += 6) {
+    b.set(x, 37, st[0]);
+    b.set(x + 1, 38, st[0]);
+    b.set(x + 2, 37, st[0]);
+  }
+  return shadowed(b, 28, 42, 26, 3);
+}
+
+/** Kontrollfahne für das Zeitrennen 2 Frames 14×26, Fusspunkt (4, 25) */
+export function checkpoint(): Raster {
+  const frames: Raster[] = [];
+  for (let f = 0; f < 2; f++) {
+    const b = new Raster(14, 26);
+    vline(b, 3, 2, 24, PAL.wood);
+    vline(b, 4, 2, 24, PAL.bark);
+    b.set(3, 1, PAL.gold);
+    b.set(4, 1, PAL.gold);
+    for (let y = 3; y < 11; y++) {
+      const len = 9 - Math.abs(y - 7) + (f === 1 && y % 2 ? -1 : 0);
+      hline(b, 5, 4 + len, y, y < 7 ? PAL.cyan : PAL.blue);
+    }
+    b.set(7, 6, PAL.white);
+    b.set(8, 7, PAL.white);
+    b.outline(PAL.ink);
+    frames.push(b);
+  }
+  return strip(frames);
+}

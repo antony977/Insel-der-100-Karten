@@ -14,12 +14,13 @@ describe('Monster-Daten', () => {
   it('jedes Monster hat Grafik und eine passende Monsterkarte', () => {
     for (const m of MONSTERS) {
       expect(SPECIES[m.sprite], m.id).toBeDefined();
+      if (!m.card) continue; // Trainingspuppen o. ä.
       const c = card(m.card);
       expect(c.type, m.id).toBe('Monster');
     }
   });
   it('alle 35 Monsterkarten sind durch Monster erreichbar', () => {
-    const cards = new Set(MONSTERS.map((m) => m.card));
+    const cards = new Set(MONSTERS.filter((m) => m.card).map((m) => m.card));
     expect(cards.size).toBe(35);
   });
   it('Erfahrungskurve steigt', () => {

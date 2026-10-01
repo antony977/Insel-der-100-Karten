@@ -377,3 +377,28 @@ export function timeIcons(): Raster {
   });
   return out;
 }
+
+
+/** Walzensymbole des Sternenautomaten 16×16: Kirsche, Glocke, Klee, Herz, Sieben, Stern */
+export const SLOT_SYMBOLS = ['kirsche', 'glocke', 'klee', 'herz', 'sieben', 'stern'] as const;
+export function slotSymbols(): Raster {
+  const icons: string[][] = [
+    ['................', '..........gg....', '.........g......', '........g.......', '.......g.g......', '......g...g.....', '.....g.....g....', '...rrr.....rrr..', '..rRRrr...rRRrr.', '..rRrrr...rRrrr.', '..rrrrr...rrrrr.', '..rrrrr...rrrrr.', '...rrr.....rrr..', '................', '................', '................'],
+    ['.......yy.......', '......yYYy......', '.....yYYYYy.....', '.....yYYYYy.....', '....yYYYYYYy....', '....yYYYYYYy....', '....yYYYYYYy....', '...yYYYYYYYYy...', '...yYYYYYYYYy...', '..yYYYYYYYYYYy..', '..yyyyyyyyyyyy..', '.......oo.......', '.......oo.......', '................', '................', '................'],
+    ['................', '.....gg..gg.....', '....gGGggGGg....', '....gGGGGGGg....', '.....gGGGGg.....', '.gg...gGGg...gg.', 'gGGgg..gg..ggGGg', 'gGGGGgg..ggGGGGg', 'gGGgg..gg..ggGGg', '.gg...gGGg...gg.', '.....gGGGGg.....', '....gGGGGGGg....', '....gGGggGGg....', '.....gg.wgg.....', '........w.......', '.......w........'],
+    ['................', '................', '...pp......pp...', '..pPPp....pPPp..', '.pPWPPp..pPPPPp.', '.pPPPPPppPPPPPp.', '.pPPPPPPPPPPPPp.', '.pPPPPPPPPPPPPp.', '..pPPPPPPPPPPp..', '...pPPPPPPPPp...', '....pPPPPPPp....', '.....pPPPPp.....', '......pPPp......', '.......pp.......', '................', '................'],
+    ['................', '..rrrrrrrrrrrr..', '..rRRRRRRRRRRr..', '..rRrrrrrrrRRr..', '..rr......rRr...', '.........rRr....', '........rRr.....', '.......rRr......', '......rRr.......', '......rRr.......', '.....rRr........', '.....rRr........', '.....rRr........', '.....rrr........', '................', '................'],
+    ['.......yy.......', '.......yy.......', '......yYYy......', '......yYYy......', 'yyyyyyYYYYyyyyyy', '.yYYYYYYYYYYYYy.', '..yYYYYWWYYYYy..', '...yYYYWWYYYy...', '...yYYYYYYYYy...', '..yYYYYyyYYYYy..', '..yYYYy..yYYYy..', '.yYYy......yYYy.', '.yyy........yyy.', '................', '................', '................'],
+  ];
+  const col: Record<string, number> = { r: PAL.red, R: PAL.coral, g: PAL.leaf, G: PAL.lime, y: PAL.orange, Y: PAL.gold, o: PAL.wood, p: PAL.red, P: PAL.pink, W: PAL.white, w: PAL.wood };
+  const out = new Raster(16 * icons.length, 16);
+  icons.forEach((rows, i) => {
+    rows.forEach((row, y) => {
+      for (let x = 0; x < 16; x++) {
+        const c = col[row[x]];
+        if (c !== undefined) out.set(i * 16 + x, y, c);
+      }
+    });
+  });
+  return out;
+}

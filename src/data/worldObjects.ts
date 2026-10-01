@@ -125,6 +125,14 @@ export const OBJECT_TYPES = {
   dandelion: { texture: 'dandelion', footX: 5, footY: 13, interact: 'pickup' },
   spot: { texture: 'spot', footX: 6, footY: 6, anim: { frames: 2, fps: 2 }, interact: 'spot' },
   lampWarm: { texture: 'lamp', footX: 6, footY: 30, box: [-3, -3, 6, 3], light: LIGHT_WARM },
+  // Meilenstein 6
+  windmillBroken: { texture: 'windmill', footX: 28, footY: 82, box: [-14, -12, 28, 12], interact: 'door' },
+  lampPost: { texture: 'lamp', footX: 6, footY: 30, box: [-3, -3, 6, 3], interact: 'switch' },
+  fogGate: { texture: 'fog', footX: 16, footY: 38, box: [-16, -14, 32, 14], anim: { frames: 3, fps: 3 }, interact: 'warp' },
+  vineGate: { texture: 'vines', footX: 8, footY: 38, box: [-8, -10, 16, 10], interact: 'warp' },
+  sphinx: { texture: 'sphinx', footX: 28, footY: 42, box: [-26, -10, 52, 10], interact: 'talk' },
+  checkpoint: { texture: 'checkpoint', footX: 4, footY: 25, anim: { frames: 2, fps: 4 }, interact: 'switch' },
+  chestBig: { texture: 'chest', footX: 8, footY: 14, box: [-6, -5, 12, 5], interact: 'chest' },
 } satisfies Record<string, ObjectType>;
 
 export type ObjectTypeId = keyof typeof OBJECT_TYPES;

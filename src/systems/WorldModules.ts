@@ -42,6 +42,8 @@ export interface WorldHost {
   after(ms: number, fn: () => void): void;
   /** Figuren neu prüfen (showIf/hideIf) */
   syncNpcs(): void;
+  /** zusätzliche Lichter (von Modulen jedes Bild neu gefüllt) */
+  readonly extraLights: { x: number; y: number; radius: number; color: number; alpha?: number }[];
 }
 
 export interface WorldModule {

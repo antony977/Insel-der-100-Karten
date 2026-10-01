@@ -349,7 +349,52 @@ export function buildIsland(seed = 4711): { map: WorldMap; meta: IslandMeta } {
     if (p.type === 'statue') {
       for (let yy = y - 1; yy <= y; yy++) for (let xx = x - 1; xx <= x + 1; xx++) if (inb(xx, yy)) terr[idx(xx, yy)] = T.STONE;
     }
+    if (p.type === 'windmill') {
+      // kaputte Mühle an derselben Stelle (die Quest tauscht sie gegen die drehende aus)
+      m.addObject('windmillBroken', x * TILE + TILE / 2, y * TILE + TILE - 2, undefined, p.tag?.replace('muehle:', 'muehle-kaputt:'));
+    }
     place(p.type, x, y, p.text, p.tag);
+  }
+
+  // Silbersee: kleine Insel mit Schrein (nur mit dem Wolkenfloss erreichbar)
+  {
+    let sx = 0;
+    let sy = 0;
+    let n = 0;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (region[idx(x, y)] === R.silbersee && terr[idx(x, y)] !== T.WATER) {
+          sx += x;
+          sy += y;
+          n++;
+        }
+      }
+    }
+    if (n > 0) {
+      const ix = Math.round(sx / n);
+      const iy = Math.round(sy / n);
+      const [cx, cy] = nearestFree(ix, iy - 1, R.silbersee);
+      place('chest', cx, cy, undefined, 'truhe:seeinsel');
+      const [rx, ry] = nearestFree(ix, iy + 2, R.silbersee);
+      place('boat', rx, ry + 1, undefined, 'warp:seeufer');
+      m.spawnPoints['warp:seeinsel'] = { x: rx * TILE + 8, y: (ry - 1) * TILE + 12 };
+      // Anleger am Nordufer (Weg Taufeld–Runenhall)
+      let best: [number, number] = [ix, iy - 20];
+      let bd = 1e9;
+      for (let y = iy - 30; y < iy + 30; y++) {
+        for (let x = ix - 40; x < ix + 40; x++) {
+          if (!inb(x, y) || terr[idx(x, y)] === T.WATER || region[idx(x, y)] === R.silbersee || occ[idx(x, y)]) continue;
+          if (!inb(x, y + 2) || terr[idx(x, y + 2)] !== T.WATER) continue;
+          const d = Math.hypot(x - 190, y - 96);
+          if (d < bd) {
+            bd = d;
+            best = [x, y];
+          }
+        }
+      }
+      place('boat', best[0], best[1] + 1, undefined, 'warp:seeinsel');
+      m.spawnPoints['warp:seeufer'] = { x: best[0] * TILE + 8, y: (best[1] - 1) * TILE + 12 };
+    }
   }
 
   // Quest-Fundstellen

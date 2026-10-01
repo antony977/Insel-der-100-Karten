@@ -161,7 +161,7 @@ export class Player implements CombatPlayer {
 
   get lightOn(): boolean {
     const t = Game.inv.tools;
-    return (t.has('laterne') || t.has('ewige-laterne') || Game.inv.bag.has('043')) && !Game.flags.has('licht-aus');
+    return (t.has('laterne') || t.has('ewige-laterne') || t.has('irrlicht-glas') || Game.inv.bag.has('043')) && !Game.flags.has('licht-aus');
   }
 
   get dead(): boolean {
@@ -469,6 +469,7 @@ export class Player implements CombatPlayer {
       },
       { fromX: this.x, fromY: this.y - 6, kb, src: 'melee' },
     );
+    Game.events.emit('player-strike', cx, cy, kind === 'charge' ? 20 : 15, String(kind));
     if (n > 0) {
       this.counterReady = false;
       this.hooks.hitStop(kind === 'charge' ? 80 : kind === 2 ? 55 : 35);
@@ -648,6 +649,7 @@ export class Player implements CombatPlayer {
     const color = this.auraColor;
     w.numbers.spawn(this.x, this.y - 34, Game.prog.techName, { color, small: true });
     Sound.play('special');
+    Game.events.emit('technique-used', 'spezial');
     if (Game.prog.affinity === 'wurzel') Sound.play('stomp');
     this.hooks.flash?.(color, 90);
     switch (Game.prog.affinity) {

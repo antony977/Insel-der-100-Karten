@@ -1,6 +1,12 @@
-import { registerDialogs, type DialogDef } from '../../systems/Dialog';
+import { registerDialogs, type DialogCtx, type DialogDef } from '../../systems/Dialog';
 import './taufeld';
 import './runenhall';
+import './moewenhafen';
+import './wuerfelheim';
+import './hohenkamm';
+import './sandspiegel';
+import './rosenweil';
+import './wildnis';
 
 const rastfeuer: DialogDef = {
   id: 'rastfeuer',
@@ -30,6 +36,11 @@ const rastfeuer: DialogDef = {
           },
         },
         {
+          text: 'Wetter ändern (Wetterfahne)',
+          if: (c) => c.g.hasThing('037'),
+          goto: 'wetter',
+        },
+        {
           text: 'Bis zum Einbruch der Nacht warten',
           if: (c) => !c.g.isNight(),
           do: (c) => {
@@ -42,6 +53,17 @@ const rastfeuer: DialogDef = {
         },
         { text: 'Weitergehen' },
       ],
+    },
+    wetter: {
+      say: [{ who: 'Wetterfahne', text: 'Der eiserne Hahn dreht sich knarrend. Welches Wetter soll die nächsten Stunden herrschen?' }],
+      choices: (['klar', 'regen', 'sturm'] as const).map((w, i) => ({
+        text: ['Sonnenschein', 'Regen', 'Sturm'][i],
+        do: (c: DialogCtx) => {
+          c.g.vars.set('wetter-art', i);
+          c.g.vars.set('wetter-bis', c.g.day * 1440 + c.g.clock + 360);
+          c.w.toast(w === 'klar' ? 'Die Wolken reissen auf.' : w === 'regen' ? 'Es beginnt zu regnen.' : 'Der Wind frischt auf – ein Sturm zieht herauf!');
+        },
+      })),
     },
     night: { say: [{ who: 'Rastfeuer', text: 'Die Sonne versinkt hinter den Hügeln. Nachts zeigen sich andere Wesen – und manche Geheimnisse nur im Mondlicht.' }] },
     rested: { say: [{ who: 'Rastfeuer', text: 'Du fühlst dich erholt. Dein Fortschritt ist gespeichert – und hier wachst du auf, falls dir etwas zustösst.' }] },

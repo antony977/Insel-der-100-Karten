@@ -865,6 +865,23 @@ const hydra: DrawFn = (s, P) => {
 // Verzeichnis
 // ---------------------------------------------------------------------------
 
+/** Strohpuppe für das Training in Hohenkamm */
+const strawman: DrawFn = (s, P) => {
+  const wob = P.hurt ? 1 : 0;
+  const post = s.part();
+  s.rect(11, 14, 2, 9, 'b', post);
+  const body = s.part();
+  s.ell(12 + wob, 13, 5, 6, 'a', body);
+  s.rect(4 + wob, 10, 16, 3, 'a', body);
+  s.line(7 + wob, 15, 17 + wob, 15, 'b', body);
+  const head = s.part();
+  s.ell(12 + wob, 5, 4, 4, 'a', head);
+  s.px(10 + wob, 5, 'k', head);
+  s.px(14 + wob, 5, 'k', head);
+  s.line(10 + wob, 7, 14 + wob, 7, 'k', head);
+  s.rect(8 + wob, 1, 8, 2, 'c', head);
+};
+
 const R = RAMPS;
 
 export const SPECIES: Record<string, SpeciesGfx> = {
@@ -883,6 +900,7 @@ export const SPECIES: Record<string, SpeciesGfx> = {
   glyphenwaechter: { size: 24, draw: golem(24, false), m: mats(R.grey, R.ice, R.gold, PAL.cyan) },
   moosgolem: { size: 32, draw: golem(32, true), m: mats(R.grey, R.green, R.gold, PAL.lime) },
   kaktuskrieger: { size: 24, draw: cactus, m: mats(R.green, R.pink) },
+  strohpuppe: { size: 24, draw: strawman, m: mats(R.sand, R.wood, R.red) },
   kartensoldat: { size: 24, draw: cardSoldier, m: mats(R.red, R.white, R.wood) },
   quallenlicht: { size: 16, draw: jelly, m: mats(R.pink, R.ice, R.gold, PAL.cream) },
   irrlicht: { size: 16, draw: wisp, m: mats(R.ice, R.teal) },

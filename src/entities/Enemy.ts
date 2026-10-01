@@ -111,13 +111,23 @@ export class Enemy {
     this.faceLeft = Math.random() < 0.5;
     this.key = `mon-${def.sprite}`;
     this.size = (this.sprite.scene.textures.get(this.key).get(0)?.width as number) || 16;
-    this.sprite.setTexture(this.key, 0).setVisible(true).setAlpha(1).clearTint();
+    this.sprite.setTexture(this.key, 0).setVisible(true).setAlpha(1).clearTint().setScale(1);
     this.frame = -1;
     this.shadow.setVisible(true).setScale(Math.max(0.6, def.radius / 7), 1);
     const b = def.behavior;
     this.state = b.includes('camo') ? 'hidden' : b.includes('burrow') ? 'burrowed' : 'wander';
     this.tx = x;
     this.ty = y;
+  }
+
+  /** Verstärkte Variante (Quest-Gegner, Anführer) */
+  empower(hpMul: number, atkMul: number, scale = 1): void {
+    this.maxHp = this.hp = Math.round(this.hp * hpMul);
+    this.atk = Math.round(this.atk * atkMul);
+    if (scale !== 1) {
+      this.sprite.setScale(scale);
+      this.size = Math.round(this.size * scale);
+    }
   }
 
   setFrame(f: number): void {

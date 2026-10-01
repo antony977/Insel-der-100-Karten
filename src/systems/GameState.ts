@@ -67,6 +67,10 @@ export interface GameEvents {
   'level-up': (level: number) => void;
   'xp-gained': (xp: number) => void;
   'item-action': (a: UseAction) => void;
+  /** Aura-Technik erfolgreich eingesetzt */
+  'technique-used': (id: string) => void;
+  /** Nahkampfschlag der Spielfigur (für Kristalle u. Ä.) */
+  'player-strike': (x: number, y: number, r: number, kind: string) => void;
   message: (text: string) => void;
 }
 

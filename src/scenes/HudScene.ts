@@ -60,6 +60,7 @@ export class HudScene extends BaseScene {
   private minimap!: Phaser.GameObjects.Image;
   private minimapFrame!: Phaser.GameObjects.NineSlice;
   private minimapDot!: Phaser.GameObjects.Rectangle;
+  private radar!: Phaser.GameObjects.Graphics;
   private clockText!: Phaser.GameObjects.BitmapText;
   private clockIcon!: Phaser.GameObjects.Image;
   private clockT = 0;
@@ -144,13 +145,14 @@ export class HudScene extends BaseScene {
     addPanel(this, GAME_W / 2 - 34, 4, 68, 18);
     this.add.image(GAME_W / 2 - 26, 8, 'ui-icons', 3).setOrigin(0, 0);
     this.progress = addText(this, GAME_W / 2 + 6, 7, '0/100', { font: 'px-s', ox: 0.5, color: PAL.cream });
-    this.timerText = addText(this, GAME_W / 2, 26, '', { font: 'px-o', ox: 0.5, color: PAL.gold, scale: 1 }).setVisible(false);
+    this.timerText = addText(this, GAME_W / 2, 56, '', { font: 'px-o', ox: 0.5, color: PAL.gold, scale: 1 }).setVisible(false);
 
     // --- Minimap (oben rechts) ---
     this.buildMinimapTexture();
     this.minimapFrame = addPanel(this, GAME_W - MINIMAP_W - 12, 4, MINIMAP_W + 8, MINIMAP_H + 8);
     this.minimap = this.add.image(GAME_W - MINIMAP_W - 8, 8, 'minimap').setOrigin(0, 0);
     this.minimapDot = this.add.rectangle(0, 0, 2, 2, PAL.white).setOrigin(0.5, 0.5);
+    this.radar = this.add.graphics();
     // Uhrzeit + Wetter unter der Minimap
     this.clockText = addText(this, GAME_W - 9, MINIMAP_H + 14, '', { font: 'px-o', ox: 1, color: PAL.cream });
     this.clockIcon = this.add.image(0, MINIMAP_H + 14, 'hud-time', 0).setOrigin(0, 0);
@@ -420,6 +422,15 @@ export class HudScene extends BaseScene {
       this.minimap.setCrop(cx, cy, MINIMAP_W, MINIMAP_H);
       this.minimap.setPosition(GAME_W - MINIMAP_W - 8 - cx, this.minimapFrame.y + 4 - cy);
       this.minimapDot.setPosition(this.minimap.x + pos[0] + 0.5, this.minimap.y + pos[1] + 0.5);
+      // Fernglas: Monster (rot) und Karten (gold) auf der Minikarte
+      this.radar.clear();
+      const dots = this.registry.get('radar') as [number, number, number][] | null | undefined;
+      if (dots) {
+        for (const [dx, dy, k] of dots) {
+          if (dx < cx || dy < cy || dx >= cx + MINIMAP_W || dy >= cy + MINIMAP_H) continue;
+          this.radar.fillStyle(k ? PAL.gold : PAL.red).fillRect(this.minimap.x + dx, this.minimap.y + dy, 1, 1);
+        }
+      }
       this.minimapDot.setVisible(Math.floor(time / 250) % 2 === 0);
     }
 
@@ -494,7 +505,7 @@ export class HudScene extends BaseScene {
   /** Leuchtspur: Pfeil zur nächsten herumliegenden Karte */
   private updateArrow(time: number): void {
     const pos = this.registry.get('playerPos') as [number, number] | undefined;
-    const target = this.registry.get('questTarget') as [number, number] | null | undefined;
+    const target = (this.registry.get('questTarget') ?? this.registry.get('compassTarget')) as [number, number] | null | undefined;
     if (target && pos) {
       const d = Math.hypot(target[0] - pos[0], target[1] - pos[1]);
       if (d < 40) {
