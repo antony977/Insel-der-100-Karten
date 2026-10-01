@@ -11,7 +11,7 @@ export interface TerrainPattern {
   dark: number;
   /** helle Details */
   light: number;
-  style: 'grass' | 'dots' | 'cobble' | 'pebbles' | 'flat';
+  style: 'grass' | 'dots' | 'cobble' | 'pebbles' | 'flat' | 'rows' | 'ripple' | 'cracks' | 'rock';
   density: number;
 }
 
@@ -31,6 +31,8 @@ export interface TerrainDef {
   roughness: number;
   /** wirft einen 1-px-Schatten nach unten auf tiefere Bodenarten */
   castsShadow: boolean;
+  /** Farbe auf Mini- und Weltkarte */
+  mini: number;
 }
 
 export const T = {
@@ -40,6 +42,16 @@ export const T = {
   GRASS: 3,
   FOREST: 4,
   STONE: 5,
+  SNOW: 6,
+  MOSS: 7,
+  ROCK: 8,
+  DUNE: 9,
+  FIELD: 10,
+  DARKSTONE: 11,
+  ROSE: 12,
+  PAPER: 13,
+  INKWALL: 14,
+  CAVE: 15,
 } as const;
 
 export const TERRAINS: TerrainDef[] = [
@@ -54,6 +66,7 @@ export const TERRAINS: TerrainDef[] = [
     edge: PAL.white,
     roughness: 0,
     castsShadow: false,
+    mini: PAL.blue,
   },
   {
     id: T.SAND,
@@ -65,6 +78,7 @@ export const TERRAINS: TerrainDef[] = [
     edge: PAL.sandShade,
     roughness: 0.16,
     castsShadow: false,
+    mini: PAL.sand,
   },
   {
     id: T.DIRT,
@@ -76,6 +90,7 @@ export const TERRAINS: TerrainDef[] = [
     edge: PAL.tan,
     roughness: 0.1,
     castsShadow: false,
+    mini: PAL.tan,
   },
   {
     id: T.GRASS,
@@ -87,6 +102,7 @@ export const TERRAINS: TerrainDef[] = [
     edge: PAL.leaf,
     roughness: 0.24,
     castsShadow: true,
+    mini: PAL.grass,
   },
   {
     id: T.FOREST,
@@ -98,6 +114,7 @@ export const TERRAINS: TerrainDef[] = [
     edge: PAL.pine,
     roughness: 0.26,
     castsShadow: true,
+    mini: PAL.leaf,
   },
   {
     id: T.STONE,
@@ -109,6 +126,127 @@ export const TERRAINS: TerrainDef[] = [
     edge: PAL.stone,
     roughness: 0.04,
     castsShadow: true,
+    mini: PAL.silver,
+  },
+  {
+    id: T.SNOW,
+    key: 'snow',
+    name: 'Schnee',
+    priority: 9,
+    solid: false,
+    pattern: { base: PAL.white, dark: PAL.silver, light: PAL.white, style: 'dots', density: 5 },
+    edge: PAL.silver,
+    roughness: 0.22,
+    castsShadow: true,
+    mini: PAL.white,
+  },
+  {
+    id: T.MOSS,
+    key: 'moss',
+    name: 'Moosboden',
+    priority: 7,
+    solid: false,
+    pattern: { base: PAL.teal, dark: PAL.deepTeal, light: PAL.leaf, style: 'grass', density: 7 },
+    edge: PAL.deepTeal,
+    roughness: 0.26,
+    castsShadow: true,
+    mini: PAL.teal,
+  },
+  {
+    id: T.ROCK,
+    key: 'rock',
+    name: 'Fels',
+    priority: 14,
+    solid: true,
+    pattern: { base: PAL.stone, dark: PAL.shadow, light: PAL.mist, style: 'rock', density: 6 },
+    edge: PAL.night,
+    roughness: 0.2,
+    castsShadow: true,
+    mini: PAL.shadow,
+  },
+  {
+    id: T.DUNE,
+    key: 'dune',
+    name: 'Düne',
+    priority: 2,
+    solid: false,
+    pattern: { base: PAL.sand, dark: PAL.sandShade, light: PAL.sandLight, style: 'ripple', density: 4 },
+    edge: PAL.sandShade,
+    roughness: 0.18,
+    castsShadow: false,
+    mini: PAL.sandShade,
+  },
+  {
+    id: T.FIELD,
+    key: 'field',
+    name: 'Feld',
+    priority: 4,
+    solid: false,
+    pattern: { base: PAL.gold, dark: PAL.orange, light: PAL.cream, style: 'rows', density: 0 },
+    edge: PAL.rust,
+    roughness: 0.06,
+    castsShadow: false,
+    mini: PAL.gold,
+  },
+  {
+    id: T.DARKSTONE,
+    key: 'darkstone',
+    name: 'Runenpflaster',
+    priority: 11,
+    solid: false,
+    pattern: { base: PAL.stone, dark: PAL.shadow, light: PAL.mist, style: 'cobble', density: 0 },
+    edge: PAL.shadow,
+    roughness: 0.04,
+    castsShadow: true,
+    mini: PAL.stone,
+  },
+  {
+    id: T.ROSE,
+    key: 'rose',
+    name: 'Rosenwiese',
+    priority: 6,
+    solid: false,
+    pattern: { base: PAL.grass, dark: PAL.leaf, light: PAL.pink, style: 'grass', density: 6 },
+    edge: PAL.leaf,
+    roughness: 0.24,
+    castsShadow: true,
+    mini: PAL.pink,
+  },
+  {
+    id: T.PAPER,
+    key: 'paper',
+    name: 'Papierboden',
+    priority: 12,
+    solid: false,
+    pattern: { base: PAL.sandLight, dark: PAL.sand, light: PAL.white, style: 'cracks', density: 3 },
+    edge: PAL.sandShade,
+    roughness: 0.02,
+    castsShadow: true,
+    mini: PAL.sandLight,
+  },
+  {
+    id: T.INKWALL,
+    key: 'inkwall',
+    name: 'Tintenwand',
+    priority: 15,
+    solid: true,
+    pattern: { base: PAL.plum, dark: PAL.ink, light: PAL.purple, style: 'rock', density: 4 },
+    edge: PAL.ink,
+    roughness: 0.1,
+    castsShadow: true,
+    mini: PAL.plum,
+  },
+  {
+    id: T.CAVE,
+    key: 'cave',
+    name: 'Höhlenboden',
+    priority: 13,
+    solid: false,
+    pattern: { base: PAL.shadow, dark: PAL.night, light: PAL.stone, style: 'pebbles', density: 5 },
+    edge: PAL.night,
+    roughness: 0.12,
+    castsShadow: true,
+    mini: PAL.night,
   },
 ];
 

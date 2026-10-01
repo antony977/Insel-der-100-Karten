@@ -53,6 +53,20 @@ export class TouchControls {
     Settings.onChange((_s, changed) => {
       if (changed.some((c) => c === 'touchSize' || c === 'touchOpacity' || c === 'leftHanded')) this.layout();
     });
+    // Zauber-Symbol auf den Schnellzauber-Knöpfen
+    window.addEventListener('quick-spell', (e) => {
+      const d = (e as CustomEvent<{ slot: number; url: string | null }>).detail;
+      const el = this.buttons.get(`spell${d.slot + 1}`);
+      if (!el) return;
+      let ic = el.querySelector('.spell-icon') as HTMLDivElement | null;
+      if (!ic) {
+        ic = document.createElement('div');
+        ic.className = 'spell-icon';
+        el.appendChild(ic);
+      }
+      ic.style.backgroundImage = d.url ? `url(${d.url})` : 'none';
+      ic.style.display = d.url ? 'block' : 'none';
+    });
     const refresh = () => this.setVisible(Input.source === 'touch' && Input.context === 'gameplay');
     Input.onSourceChange(refresh);
     refresh();

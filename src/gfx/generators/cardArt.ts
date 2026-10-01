@@ -397,7 +397,7 @@ export function bookClosed(): Raster {
 
 /** Lesezeichen-Reiter (4 Farben übereinander, je 52×16) */
 export function bookTabs(): Raster {
-  const colors: Ramp[] = [RAMPS.gold, RAMPS.teal, RAMPS.wood, RAMPS.red, RAMPS.violet];
+  const colors: Ramp[] = [RAMPS.gold, RAMPS.teal, RAMPS.wood, RAMPS.red, RAMPS.violet, RAMPS.blue];
   const W = 52;
   const H = 16;
   const out = new Raster(W, H * colors.length);

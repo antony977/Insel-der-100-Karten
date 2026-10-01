@@ -1,18 +1,16 @@
 import Phaser from 'phaser';
 import { BaseScene } from './BaseScene';
-import { buildTestMap } from '../data/maps/testMap';
-import { buildGround } from '../world/groundBuilder';
 import { TileRenderer } from '../world/TileRenderer';
 import { ObjectStreamer } from '../world/ObjectStreamer';
 import { GroundItems } from '../world/GroundItems';
 import type { WorldMap, WorldObject } from '../world/WorldMap';
 import { FxPool } from '../systems/FxPool';
-import { Player, createCharacterAnims } from '../entities/Player';
+import { Player } from '../entities/Player';
+import { Npc } from '../entities/Npc';
 import { Input } from '../input/InputManager';
 import { Display } from '../systems/Display';
 import { Settings } from '../systems/Settings';
 import { DEBUG, GAME_H, GAME_W, TILE } from '../config';
-import { charFrame } from '../gfx/generators/characters';
 import { exportTextures } from '../gfx/AssetLoader';
 import { PAL } from '../gfx/palette';
 import { HUD_EVENTS, type HudMessage } from './HudScene';
@@ -20,15 +18,23 @@ import { Game } from '../systems/GameState';
 import { SaveSystem } from '../systems/SaveSystem';
 import { ALL_CARDS, cardIndex, cardLabel, SAMMELKARTEN, ZAUBERKARTEN } from '../data/cards';
 import type { CardDef, Rank } from '../data/cardTypes';
-import { STARTER_CARDS, TREASURES, WISHING_WELL } from '../data/treasures';
+import { TREASURES, WISHING_WELL } from '../data/treasures';
 import { DamageNumbers } from '../systems/combat/DamageNumbers';
 import { Projectiles } from '../systems/combat/Projectiles';
 import { EnemyManager } from '../systems/combat/EnemyManager';
 import type { CombatWorld, Decoy } from '../systems/combat/CombatWorld';
 import { specialDamage } from '../systems/combat/Damage';
 import { TECHNIQUES, type TechniqueId } from '../data/aura';
-import { MONSTER_BY_ID } from '../data/monsters';
+import { MONSTER_BY_ID, type MonsterDef } from '../data/monsters';
 import type { UseAction } from '../systems/cards/Inventory';
+import { loadMap, hasMap, type LoadedMap } from '../world/maps';
+import { NPCS } from '../data/npcs';
+import { TOWNS, REGIONS, REGION_IDS, type RegionId } from '../data/world/layout';
+import { DOORS, PICKUPS, SPOTS } from '../data/doors';
+import type { WorldApi } from '../systems/Dialog';
+import type { Enemy } from '../entities/Enemy';
+import { castSpell, type SpellHost } from '../systems/Spells';
+import '../data/dialogs';
 
 /** Spiegelbild (Spiegel-Affinität): zieht Angriffe auf sich und explodiert */
 class MirrorDecoy implements Decoy {
@@ -73,26 +79,17 @@ class MirrorDecoy implements Decoy {
   }
 }
 
-interface Npc {
-  sprite: Phaser.GameObjects.Sprite;
-  shadow: Phaser.GameObjects.Image;
-  x: number;
-  y: number;
-  name: string;
-  lines: string[];
-  line: number;
-  onTalk?: () => boolean;
-}
-
-const INTERACT_TEXT: Record<string, HudMessage> = {
-  campfire: { name: 'Rastfeuer', text: 'Ein gemütliches Rastfeuer knistert. Hier wirst du später speichern und dich ausruhen können.' },
-  house: { name: 'Haus', text: 'Die Tür ist verschlossen. Drinnen brennt kein Licht.' },
-};
-
 const AUTOSAVE_SECONDS = 30;
 
-/** Spielwelt (Testwiese) mit Kartenbuch-Anbindung. */
+export interface WorldInit {
+  continue?: boolean;
+  /** Kartenwechsel: Zielkarte und Ankunftspunkt */
+  warp?: { map: string; x: number; y: number };
+}
+
+/** Die Spielwelt: Insel (und weitere Karten), Figuren, Monster, Interaktionen. */
 export class WorldScene extends BaseScene {
+  loaded!: LoadedMap;
   private map!: WorldMap;
   private tiles!: TileRenderer;
   private objects!: ObjectStreamer;
@@ -108,7 +105,7 @@ export class WorldScene extends BaseScene {
   private shakeAmp = 0;
   private hitStopUntil = 0;
   private debugGfx: Phaser.GameObjects.Graphics | null = null;
-  private continueGame = false;
+  private init0: WorldInit = {};
   private autosaveT = 0;
   private pendingCards: CardDef[] = [];
   private numbers!: DamageNumbers;
@@ -123,13 +120,18 @@ export class WorldScene extends BaseScene {
   private dying = false;
   private levelUpPending = false;
   private flashRect!: Phaser.GameObjects.Rectangle;
+  private region: RegionId | '' = '';
+  private regionCheckT = 0;
+  private hiddenSpots: number[] = [];
+  private api!: WorldApi;
+  private warping = false;
 
   constructor() {
     super('World');
   }
 
-  init(data: { continue?: boolean }): void {
-    this.continueGame = !!data?.continue;
+  init(data: WorldInit): void {
+    this.init0 = data ?? {};
   }
 
   create(): void {
@@ -138,20 +140,22 @@ export class WorldScene extends BaseScene {
     this.npcs = [];
     this.autosaveT = 0;
     this.pendingCards = [];
-
-    this.map = buildTestMap();
-    if (!this.continueGame) {
-      Game.newGame();
-      Game.player.map = 'testwiese';
-      Game.player.x = this.map.spawnX;
-      Game.player.y = this.map.spawnY;
+    this.region = '';
+    this.warping = false;
+    if (!this.init0.continue && !this.init0.warp) Game.newGame();
+    if (this.init0.warp) {
+      Game.player.map = this.init0.warp.map;
+      Game.player.x = this.init0.warp.x;
+      Game.player.y = this.init0.warp.y;
     }
-    // geöffnete Truhen
-    this.map.objects.forEach((o) => {
-      if (o.tag && Game.flags.has(`offen:${o.tag}`)) o.frame = 1;
-    });
-    const composer = buildGround(this.map);
-    this.tiles = new TileRenderer(this, this.map, composer);
+    const urlMap = DEBUG ? new URLSearchParams(location.search).get('map') : null;
+    if (urlMap && !this.init0.continue) Game.player.map = urlMap;
+    this.loaded = loadMap(Game.player.map || 'insel');
+    Game.player.map = this.loaded.id;
+    this.map = this.loaded.map;
+    this.applyWorldFlags();
+
+    this.tiles = new TileRenderer(this, this.map, this.loaded.composer);
     this.objects = new ObjectStreamer(this, this.map);
     this.fx = new FxPool(this);
     this.ground = new GroundItems(this, Game.player.map);
@@ -161,7 +165,7 @@ export class WorldScene extends BaseScene {
       shake: (i, d) => this.shake(i, d),
       hitStop: (ms) => this.hitStop(ms),
       interact: (x, y) => this.tryInteract(x, y),
-      spell: (slot) => this.toast(`Schnellzauber ${slot}: Zauber wirken folgt in Meilenstein 4.`),
+      spell: (slot) => this.castQuick(slot),
       aimWorld: () => this.aimWorld(),
       died: () => this.onPlayerDied(),
       decoy: (x, y, sec, power) => this.decoy.spawn(x, y, sec, power, this.player.sprite.frame.name as unknown as number),
@@ -189,6 +193,7 @@ export class WorldScene extends BaseScene {
       enemies: null as unknown as EnemyManager,
     };
     this.enemies = new EnemyManager(this.combat);
+    this.enemies.onKill = (def, e) => this.onMonsterKilled(def, e);
     this.combat.enemies = this.enemies;
     this.player.world = this.combat;
     this.flashRect = this.add.rectangle(0, 0, GAME_W, GAME_H, 0xffffff, 0).setOrigin(0, 0).setScrollFactor(0).setDepth(300000).setBlendMode(Phaser.BlendModes.ADD);
@@ -197,14 +202,29 @@ export class WorldScene extends BaseScene {
     this.wheelOpen = false;
     this.auraHeld = false;
 
-    this.addNpc('npc-lumi', this.map.spawnX + 40, this.map.spawnY - 26, 'Lumi', [
-      'Ruf jederzeit dein Buch mit B (oder dem Buch-Knopf). Neue Karten liegen zuerst in deiner Hand.',
-      'Eine Karte, die länger als 60 Sekunden ausserhalb des Buchs ist, verwandelt sich für immer in ihren Gegenstand.',
-      'Mit „Entfessle!" verwandelst du eine Karte absichtlich – etwa einen Heiltrank, wenn du ihn brauchst.',
-      'Jede Karte gibt es nur begrenzt oft auf der Insel. Ist das Limit erreicht, bekommst du sie nur noch von anderen.',
-      'Am Brunnen auf dem Platz kannst du für 10 Münzen dein Glück versuchen. Und halte Ausschau nach Truhen!',
-    ], () => this.lumiStart());
+    // --- Figuren
+    for (const n of NPCS) {
+      if (n.map !== this.loaded.id) continue;
+      if (n.showIf && !Game.flags.has(n.showIf)) continue;
+      if (n.hideIf && Game.flags.has(n.hideIf)) continue;
+      const town = n.town ? TOWNS.find((t) => t.id === n.town) : undefined;
+      const tx = (town ? town.x : 0) + n.x;
+      const ty = (town ? town.y : 0) + n.y;
+      this.npcs.push(
+        new Npc(this, this.map, {
+          id: n.id,
+          key: `npc-${n.id}`,
+          name: n.name,
+          x: tx * TILE + 8,
+          y: ty * TILE + 12,
+          facing: n.facing ?? 'down',
+          wander: n.wander ?? 0,
+          dialog: n.dialog,
+        }),
+      );
+    }
 
+    this.api = this.makeApi();
     this.crosshair = this.add.image(0, 0, 'ui-crosshair').setDepth(200000).setVisible(false);
     this.camX = this.player.x;
     this.camY = this.player.y - 12;
@@ -224,14 +244,13 @@ export class WorldScene extends BaseScene {
       Input.release('dodge', 'mouse');
     });
 
-    // Spielereignisse
     const offs = [
       Game.events.on('card-received', (def, uid) => this.onCardReceived(def, uid)),
       Game.events.on('card-limit', (def) =>
-        this.toast(`Alle ${def.limit} Exemplare von „${def.name}" sind bereits im Umlauf – jetzt nur noch von anderen Spielern zu bekommen.`),
+        this.toast(`Alle ${def.limit} Exemplare von „${def.name}" sind bereits im Umlauf – jetzt nur noch von anderen Sammlern zu bekommen.`),
       ),
       Game.events.on('card-transformed', (def, msg) => this.toast(`Zu spät! ${cardLabel(def)} ${def.name} hat sich verwandelt. ${msg}`)),
-      Game.events.on('message', (t) => this.toast(t)),
+      Game.events.on('message', (t) => t && this.toast(t)),
       Game.events.on('level-up', () => {
         this.levelUpPending = true;
       }),
@@ -239,6 +258,7 @@ export class WorldScene extends BaseScene {
     ];
 
     this.registry.set('worldMap', this.map);
+    this.registry.set('worldMeta', this.loaded.meta ?? null);
     this.registry.set('worldActive', true);
     this.scene.launch('Hud');
     this.events.on(Phaser.Scenes.Events.RESUME, () => Input.setContext('gameplay'));
@@ -248,15 +268,33 @@ export class WorldScene extends BaseScene {
       this.objects.destroy();
       this.ground.destroy();
       this.enemies.destroy();
+      for (const n of this.npcs) n.destroy();
       this.registry.set('worldActive', false);
       this.scene.stop('Hud');
     });
     this.cameras.main.fadeIn(350, 13, 10, 20);
-    if (!this.continueGame) {
-      this.time.delayedCall(600, () => this.toast('Willkommen auf der Insel! Sprich mit Lumi – sie steht gleich neben dir.'));
+    if (this.init0.warp) {
+      // Ankunft nach einer Reise
+    } else if (!this.init0.continue || Game.flags.has('frisch')) {
+      Game.flags.delete('frisch');
+      this.time.delayedCall(700, () => this.toast('Willkommen auf der Insel! Sprich mit Lumi – sie steht gleich beim Ersten Tor.'));
     } else {
       this.time.delayedCall(400, () => this.toast('Spielstand geladen.'));
     }
+  }
+
+  /** Geöffnete Truhen, aufgehobene Dinge, Statuen nach Spielstand */
+  private applyWorldFlags(): void {
+    this.hiddenSpots = [];
+    this.map.objects.forEach((o, i) => {
+      if (!o.tag) return;
+      if (Game.flags.has(`offen:${o.tag}`)) o.frame = 1;
+      if (Game.flags.has(`genommen:${o.tag}`)) this.map.removeObject(i);
+      const spot = SPOTS[o.tag];
+      if (spot?.flag && Game.flags.has(spot.flag)) this.map.removeObject(i);
+      if (spot?.hidden && !o.hidden) this.hiddenSpots.push(i);
+      if (o.tag.startsWith('statue:')) o.frame = Game.vars.get(o.tag) ?? 0;
+    });
   }
 
   /** Gespeicherte Position nur verwenden, wenn sie frei ist. */
@@ -270,13 +308,39 @@ export class WorldScene extends BaseScene {
     this.updateCamera(0);
   }
 
-  private addNpc(key: string, x: number, y: number, name: string, lines: string[], onTalk?: () => boolean): void {
-    createCharacterAnims(this, key);
-    const shadow = this.add.image(x, y, 'shadow').setDepth(-2000);
-    const sprite = this.add.sprite(x, y, key, charFrame('down', 'idle0')).setOrigin(0.5, 30 / 32).setDepth(y);
-    sprite.play(`${key}-idle-down`);
-    this.map.chunkBoxes[this.map.chunkIndexAt(x, y)]?.push({ x: x - 5, y: y - 6, w: 10, h: 6, obj: -1 });
-    this.npcs.push({ sprite, shadow, x, y, name, lines, line: 0, onTalk });
+  private makeApi(): WorldApi {
+    return {
+      toast: (t) => this.toast(t),
+      openShop: (id) => this.openShop(id),
+      giveCard: (id) => Game.giveCard(id) !== null,
+      heal: () => {
+        const st = Game.inv.stats();
+        Game.inv.lp = st.lp;
+        Game.inv.aura = st.aura;
+        Game.events.emit('vitals-changed');
+      },
+      save: () => SaveSystem.autosave(),
+      setRest: () => {
+        Game.prog.rest = { map: Game.player.map, x: this.player.x, y: this.player.y };
+      },
+      spawnMonster: (id, tx, ty, tag) => {
+        const def = MONSTER_BY_ID[id];
+        if (!def) return;
+        if (tag && this.enemies.list.some((e) => e.active && e.tag === tag)) return;
+        let x = tx * TILE + 8;
+        let y = ty * TILE + 8;
+        for (let r = 0; r < 12 && this.map.boxBlocked(x - 6, y - 5, 12, 5); r++) {
+          x += 16;
+          y += r % 2 ? 16 : 0;
+        }
+        const e = this.enemies.spawn(def, x, y);
+        if (e && tag) e.tag = tag;
+      },
+      warp: (target) => this.warpTo(target),
+      after: (fn) => this.time.delayedCall(30, fn),
+      openScene: (key, data) => this.openOverlay(key, data),
+      wish: () => this.wishingWell(),
+    };
   }
 
   private messageOpen(): boolean {
@@ -289,6 +353,41 @@ export class WorldScene extends BaseScene {
 
   toast(text: string): void {
     this.game.events.emit(HUD_EVENTS.toast, text);
+  }
+
+  // ------------------------------------------------------------ Szenen-Overlays
+
+  openOverlay(key: string, data?: object, hideHud = false): void {
+    if (!this.scene.isActive()) return;
+    Input.setContext('menu');
+    this.scene.pause();
+    this.scene.pause('Hud');
+    if (hideHud) this.scene.setVisible(false, 'Hud');
+    this.scene.launch(key, data);
+  }
+
+  openTalk(dialog: string, npc?: string): void {
+    this.openOverlay('Talk', { dialog, npc, api: this.api });
+  }
+
+  openShop(id: string): void {
+    this.openOverlay('Shop', { shop: id });
+  }
+
+  openPause(): void {
+    this.openOverlay('Pause');
+  }
+
+  openLevelUp(): void {
+    this.openOverlay('LevelUp', undefined, true);
+  }
+
+  openBook(tab?: string): void {
+    this.openOverlay('Book', { tab }, true);
+  }
+
+  openMap(): void {
+    this.openOverlay('Map', { x: this.player.x, y: this.player.y }, true);
   }
 
   // ------------------------------------------------------------ Karten in der Welt
@@ -306,7 +405,6 @@ export class WorldScene extends BaseScene {
         depth: 150001,
       });
     }
-    // Mehrere gleichzeitig erhaltene Karten in einer Meldung zusammenfassen
     this.pendingCards.push(def);
     if (this.pendingCards.length === 1) {
       this.time.delayedCall(60, () => {
@@ -322,21 +420,13 @@ export class WorldScene extends BaseScene {
     }
   }
 
-  private lumiStart(): boolean {
-    if (Game.flags.has('lumi-start')) return false;
-    Game.flags.add('lumi-start');
-    this.message({
-      name: 'Lumi',
-      portrait: 'npc-lumi',
-      text: 'Willkommen auf der Insel der 100 Karten! Ich bin Lumi, die Hüterin des Ersten Tors. Hier ist alles eine Karte – auch dieses kleine Geschenk.',
-    });
-    for (const id of STARTER_CARDS) Game.giveCard(id);
-    this.message({
-      name: 'Lumi',
-      portrait: 'npc-lumi',
-      text: 'Schnipp jetzt dein Kartenbuch auf (Taste B oder Buch-Knopf) und lege die Karten hinein – in 60 Sekunden verwandeln sie sich sonst!',
-    });
-    return true;
+  private onMonsterKilled(_def: MonsterDef, e: Enemy): void {
+    if (e.tag === 'kobold-dieb' && Game.quests.stage('q-kobold') === 1) {
+      Game.quests.set('q-kobold', 2);
+      Game.giveCard('038');
+      this.toast('Der Kobold lässt das Tintenfass der Wahrheit fallen!');
+    }
+    this.game.events.emit('monster-killed', e.def.id, e.tag);
   }
 
   private openChest(o: WorldObject, index: number): void {
@@ -358,18 +448,19 @@ export class WorldScene extends BaseScene {
       this.toast(`${loot.money} Münzen gefunden!`);
     }
     for (const id of loot.cards) Game.giveCard(id);
+    if (!loot.cards.length && !loot.money) this.toast('Nur Staub und ein paar Spinnweben.');
     SaveSystem.autosave();
   }
 
   /** Wunschbrunnen: zufällige Karte nach gewichteten Rängen */
-  private wishingWell(): void {
+  wishingWell(): void {
     if (Game.inv.money < WISHING_WELL.cost) {
       this.message({ name: 'Wunschbrunnen', text: `Für einen Wunsch brauchst du ${WISHING_WELL.cost} Münzen.` });
       return;
     }
     Game.inv.money -= WISHING_WELL.cost;
     Game.events.emit('vitals-changed');
-    const pool = Math.random() < WISHING_WELL.spellChance ? ZAUBERKARTEN : SAMMELKARTEN;
+    const pool = Math.random() < WISHING_WELL.spellChance ? ZAUBERKARTEN.filter((z) => !z.spell?.questOnly) : SAMMELKARTEN.filter((c) => c.type !== 'Monster' && !/Bezwinge|Besiege/i.test(c.hint));
     const weights = WISHING_WELL.weights;
     const total = Object.values(weights).reduce((a, b) => a + (b ?? 0), 0);
     let roll = Math.random() * total;
@@ -381,7 +472,6 @@ export class WorldScene extends BaseScene {
         break;
       }
     }
-    // passende Karten mit freiem Limit; sonst nächstseltenere Stufe abwärts
     let candidates = pool.filter((c) => c.rank === rank && Game.registry.canCreate(c.id));
     if (!candidates.length) candidates = pool.filter((c) => ['F', 'G', 'H', 'E'].includes(c.rank) && Game.registry.canCreate(c.id));
     if (!candidates.length) {
@@ -393,21 +483,18 @@ export class WorldScene extends BaseScene {
     Game.giveCard(pick.id);
   }
 
+  // ------------------------------------------------------------ Interaktion
+
   private tryInteract(px: number, py: number): boolean {
     for (const n of this.npcs) {
-      const near = Math.hypot(n.x - px, n.y - 6 - py) < 22 || Math.hypot(n.x - this.player.x, n.y - this.player.y) < 26;
+      const near = Math.hypot(n.x - px, n.y - 6 - py) < 22 || Math.hypot(n.x - this.player.x, n.y - this.player.y) < 24;
       if (near) {
-        const dx = this.player.x - n.x;
-        const dy = this.player.y - n.y;
-        const dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
-        n.sprite.play(`${n.sprite.texture.key}-idle-${dir}`);
-        if (n.onTalk?.()) return true;
-        this.message({ name: n.name, text: n.lines[n.line], portrait: n.sprite.texture.key });
-        n.line = (n.line + 1) % n.lines.length;
+        n.faceTo(this.player.x, this.player.y);
+        this.openTalk(n.def.dialog, n.def.id);
         return true;
       }
     }
-    const o = this.map.findInteractable(px, py, 20);
+    const o = this.map.findInteractable(px, py, 22);
     if (!o) return false;
     const idx = this.map.objects.indexOf(o);
     switch (o.def.interact) {
@@ -418,18 +505,260 @@ export class WorldScene extends BaseScene {
         this.openChest(o, idx);
         break;
       case 'well':
-        this.wishingWell();
+        this.useWell(o);
+        break;
+      case 'campfire':
+        Game.prog.rest = { map: Game.player.map, x: this.player.x, y: this.player.y + 4 };
+        this.openTalk('rastfeuer');
+        break;
+      case 'door':
+        this.useDoor(o);
+        break;
+      case 'gate':
+        this.useGate(o, idx);
+        break;
+      case 'warp':
+        this.useWarp(o);
+        break;
+      case 'board':
+        this.openTalk('rangliste');
+        break;
+      case 'statue':
+        this.turnStatue(o, idx);
+        break;
+      case 'pickup':
+      case 'spot':
+        return this.useSpot(o, idx);
+      case 'crystal':
+        this.message({ name: 'Kristall', text: 'Ein leuchtender Kristall. Mit einem kräftigen Aufladeschlag liesse er sich vielleicht abbauen.' });
         break;
       default:
-        this.message(INTERACT_TEXT[o.def.interact ?? ''] ?? { name: '', text: '…' });
+        this.message({ name: '', text: '…' });
     }
     return true;
   }
 
-  private aimWorld(): { x: number; y: number } | null {
-    if (!Input.mouseAiming) return null;
-    const p = this.input.activePointer;
-    return this.cameras.main.getWorldPoint(p.x, p.y);
+  private useWell(o: WorldObject): void {
+    const town = o.tag?.startsWith('brunnen:') ? o.tag.slice(8) : '';
+    if (town) {
+      Game.lastWell = { map: Game.player.map, x: o.x, y: o.y + 18, town };
+      Game.prog.rest = { map: Game.player.map, x: o.x, y: o.y + 18 };
+      Game.visited.add(town);
+    }
+    if (town === 'taufeld') this.openTalk('wunschbrunnen');
+    else this.message({ name: 'Stadtbrunnen', text: 'Du tauchst die Hand ins kühle Wasser. Hier wachst du auf, falls dir etwas zustösst – und Brunnensprung-Zauber führen dich hierher zurück.' });
+  }
+
+  private useDoor(o: WorldObject): void {
+    const d = o.tag ? DOORS[o.tag] : undefined;
+    if (!d) {
+      this.message({ name: 'Tür', text: 'Die Tür ist verschlossen.' });
+      return;
+    }
+    if (d.dialog) this.openTalk(d.dialog, d.npc);
+    else if (d.shop) this.openShop(d.shop);
+    else this.message({ name: d.name, text: d.text ?? 'Niemand öffnet.' });
+  }
+
+  private useGate(o: WorldObject, idx: number): void {
+    if (o.tag === 'erstes-tor') {
+      if (Game.flags.has('nullpunkt-bereit')) {
+        this.openTalk('nullpunkt');
+        return;
+      }
+      this.message({ name: 'Erstes Tor', text: 'Das Portal schimmert, aber es lässt dich nicht hindurch. „Erst wenn das Buch voll ist", flüstert es.' });
+      return;
+    }
+    this.game.events.emit('world-gate', o, idx);
+    if (!this.gateHandlers.some((h) => h(o, idx))) this.message({ name: 'Wegsperre', text: 'Hier kommst du noch nicht weiter.' });
+  }
+
+  /** Zusätzliche Wegsperren-Logik (Regionen-Erweiterungen) */
+  gateHandlers: ((o: WorldObject, idx: number) => boolean)[] = [];
+
+  /** Objekt dauerhaft entfernen (Sperre geöffnet) */
+  removeWorldObject(idx: number, flag?: string): void {
+    const o = this.map.objects[idx];
+    if (flag) Game.flags.add(flag);
+    else if (o.tag) Game.flags.add(`genommen:${o.tag}`);
+    this.map.removeObject(idx);
+    this.objects.refresh(idx);
+    for (let i = 0; i < 10; i++) this.fx.spawn('sparkle', o.x + (Math.random() - 0.5) * 20, o.y - 12, { tint: PAL.gold, vy: -40 });
+    this.fx.spawn('poof', o.x, o.y - 10, { scale: 2 });
+  }
+
+  private useWarp(o: WorldObject): void {
+    const target = o.tag?.startsWith('warp:') ? o.tag.slice(5) : '';
+    this.warpTo(target);
+  }
+
+  /** Reise zu einer anderen Karte oder einem Ankunftspunkt */
+  warpTo(target: string): void {
+    if (this.warping) return;
+    if (target === 'klippen' || target === 'hafen') {
+      // Bootsfahrt zwischen Möwenhafen und den Möwenklippen (braucht den Hafenpass)
+      if (target === 'klippen' && !Game.hasThing('015')) {
+        this.message({ name: 'Wache am Seetor', text: 'Halt! Ohne Hafenpass darf niemand durchs Seetor. Befehl des Hafenmeisters.' });
+        return;
+      }
+      const sp = target === 'klippen' ? this.map.spawnPoints['warp:hafen'] : this.harborPoint();
+      if (!sp) return;
+      this.fadeTeleport(sp.x, sp.y, target === 'klippen' ? 'Das Boot gleitet über die Wellen zu den Möwenklippen …' : 'Zurück nach Möwenhafen …');
+      return;
+    }
+    if (target === 'insel-zurueck') target = 'insel';
+    if (!hasMap(target)) {
+      this.message({ name: 'Versperrt', text: 'Ein kalter Luftzug weht dir entgegen. Dieser Weg öffnet sich später.' });
+      return;
+    }
+    const gateCheck = this.warpChecks[target];
+    if (gateCheck) {
+      const msg = gateCheck();
+      if (msg) {
+        this.message({ name: 'Versperrt', text: msg });
+        return;
+      }
+    }
+    this.changeMap(target);
+  }
+
+  /** Bedingungen für Kartenwechsel (z. B. Tiefenperle für die Muschelgrotte) */
+  warpChecks: Record<string, () => string | null> = {};
+
+  changeMap(target: string, x = 0, y = 0): void {
+    this.warping = true;
+    const from = Game.player.map;
+    SaveSystem.autosave();
+    this.cameras.main.fadeOut(300, 13, 10, 20);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      let tx = x;
+      let ty = y;
+      if (!tx && target === 'insel') {
+        // Rückkehr: am Eingang der verlassenen Karte erscheinen
+        const lm = loadMap('insel');
+        const i = lm.map.findByTag(`warp:${from}`);
+        if (i >= 0) {
+          tx = lm.map.objects[i].x;
+          ty = lm.map.objects[i].y + 14;
+        }
+      }
+      this.scene.restart({ continue: true, warp: { map: target, x: tx, y: ty } });
+    });
+  }
+
+  private harborPoint(): { x: number; y: number } | null {
+    const i = this.map.findByTag('warp:klippen');
+    if (i < 0) return null;
+    const o = this.map.objects[i];
+    return { x: o.x - 40, y: o.y - 8 };
+  }
+
+  private fadeTeleport(x: number, y: number, text?: string): void {
+    this.warping = true;
+    this.cameras.main.fadeOut(400, 13, 10, 20);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      this.player.x = x;
+      this.player.y = y;
+      this.camX = x;
+      this.camY = y - 12;
+      this.enemies.clear();
+      this.projectiles.clear();
+      this.updateCamera(0);
+      this.cameras.main.fadeIn(400, 13, 10, 20);
+      this.warping = false;
+      if (text) this.toast(text);
+    });
+  }
+
+  /** Teleport innerhalb der Karte (Zauber) */
+  teleportTo(x: number, y: number, text?: string): void {
+    // freie Stelle suchen
+    let tx = x;
+    let ty = y;
+    for (let r = 0; r < 30 && this.map.boxBlocked(tx - 5, ty - 6, 10, 6); r++) {
+      const a = r * 2.4;
+      tx = x + Math.cos(a) * r * 6;
+      ty = y + Math.sin(a) * r * 6;
+    }
+    this.fadeTeleport(tx, ty, text);
+  }
+
+  private turnStatue(o: WorldObject, idx: number): void {
+    o.frame = ((o.frame ?? 0) + 1) % 4;
+    Game.vars.set(o.tag ?? '', o.frame);
+    this.objects.refresh(idx);
+    this.fx.spawn('dust', o.x, o.y - 2);
+    this.shake(1, 80);
+    this.game.events.emit('statue-turned', o.tag);
+  }
+
+  private useSpot(o: WorldObject, idx: number): boolean {
+    const tag = o.tag ?? '';
+    if (tag.startsWith('pickup:')) {
+      const kind = tag.split(':')[1];
+      const p = PICKUPS[kind];
+      if (!p) return false;
+      if (Game.giveCard(p.card) === null) return true;
+      Game.flags.add(`genommen:${tag}`);
+      this.map.removeObject(idx);
+      this.objects.refresh(idx);
+      this.toast(p.text);
+      return true;
+    }
+    const s = SPOTS[tag];
+    if (!s) return false;
+    if (s.hidden && !this.player.sense) return false;
+    if (s.needs && !Game.hasThing(s.needs)) {
+      this.message({ name: 'Glitzernde Stelle', text: 'Hier liegt etwas vergraben. Mit einer Schaufel könntest du graben.' });
+      return true;
+    }
+    if (s.flag) Game.flags.add(s.flag);
+    Game.flags.add(`genommen:${tag}`);
+    this.map.removeObject(idx);
+    this.objects.refresh(idx);
+    if (s.card) Game.giveCard(s.card);
+    this.toast(s.text);
+    for (let i = 0; i < 8; i++) this.fx.spawn('sparkle', o.x, o.y - 6, { tint: PAL.gold, vx: (Math.random() - 0.5) * 60, vy: -40 });
+    if (tag === 'geheim:glocke' && Game.quests.stage('q-glocke') === 1) Game.quests.set('q-glocke', 2);
+    this.game.events.emit('spot-used', tag);
+    return true;
+  }
+
+  // ------------------------------------------------------------ Zauber
+
+  private castQuick(slot: number): void {
+    const uid = Game.quick[slot - 1];
+    if (uid === null || uid === undefined || !Game.book.locate(uid)) {
+      Game.quick[slot - 1] = null;
+      this.toast(`Schnellzauber ${slot} ist leer. Leg im Buch einen Zauber auf diese Taste.`);
+      return;
+    }
+    const r = castSpell(uid, this.spellHost());
+    if (r) this.toast(r);
+  }
+
+  /** Schnittstelle für das Zaubersystem */
+  spellHost(): SpellHost {
+    return {
+      x: this.player.x,
+      y: this.player.y,
+      map: Game.player.map,
+      meta: this.loaded.meta ?? null,
+      worldMap: this.map,
+      teleport: (x, y, text) => this.teleportTo(x, y, text),
+      changeMap: (map, x, y) => this.changeMap(map, x, y),
+      toast: (t) => this.toast(t),
+      message: (name, text) => this.message({ name, text }),
+      fx: (color) => {
+        for (let i = 0; i < 14; i++) {
+          const a = (i / 14) * Math.PI * 2;
+          this.fx.spawn('sparkle', this.player.x, this.player.y - 14, { tint: color, vx: Math.cos(a) * 70, vy: Math.sin(a) * 60, depth: this.player.y + 3 });
+        }
+        this.fx.spawn('ring', this.player.x, this.player.y - 8, { tint: color, scale: 1 });
+        this.flash(color, 120);
+      },
+      openScene: (key, data) => this.openOverlay(key, data),
+    };
   }
 
   // ------------------------------------------------------------ Kampf
@@ -462,7 +791,7 @@ export class WorldScene extends BaseScene {
       const [dx, dy] = this.player.facing === 'left' ? [-1, 0] : this.player.facing === 'right' ? [1, 0] : this.player.facing === 'up' ? [0, -1] : [0, 1];
       this.projectiles.spawn({ kind: 'mud', x: this.player.x, y: this.player.y, vx: dx * 200, vy: dy * 200, dmg: 8, team: 'player', life: 0.8 });
     } else if (a.kind === 'wonder') {
-      this.toast('Dieses Wunder braucht einen besonderen Ort – vielleicht deinen eigenen Garten?');
+      this.game.events.emit('wonder', a.wonder);
     }
   }
 
@@ -561,6 +890,12 @@ export class WorldScene extends BaseScene {
     this.anims.pauseAll();
   }
 
+  private aimWorld(): { x: number; y: number } | null {
+    if (!Input.mouseAiming) return null;
+    const p = this.input.activePointer;
+    return this.cameras.main.getWorldPoint(p.x, p.y);
+  }
+
   private updateCamera(dt: number): void {
     const cam = this.cameras.main;
     const tx = this.player.x;
@@ -570,8 +905,8 @@ export class WorldScene extends BaseScene {
     this.camY += (ty - this.camY) * k;
     const hw = GAME_W / 2;
     const hh = GAME_H / 2;
-    this.camX = Phaser.Math.Clamp(this.camX, hw, this.map.pixelWidth - hw);
-    this.camY = Phaser.Math.Clamp(this.camY, hh, this.map.pixelHeight - hh);
+    this.camX = Phaser.Math.Clamp(this.camX, hw, Math.max(hw, this.map.pixelWidth - hw));
+    this.camY = Phaser.Math.Clamp(this.camY, hh, Math.max(hh, this.map.pixelHeight - hh));
     let ox = 0;
     let oy = 0;
     if (this.shakeT > 0) {
@@ -582,6 +917,37 @@ export class WorldScene extends BaseScene {
     }
     cam.centerOn(Display.snap(this.camX) + ox, Display.snap(this.camY) + oy);
   }
+
+  // ------------------------------------------------------------ Regionen
+
+  private updateRegion(dt: number): void {
+    this.regionCheckT -= dt;
+    if (this.regionCheckT > 0) return;
+    this.regionCheckT = 0.5;
+    const tx = Math.floor(this.player.x / TILE);
+    const ty = Math.floor(this.player.y / TILE);
+    // Erkundung für die Weltkarte (8×8-Kachelblöcke)
+    const bx = Math.floor(tx / 8);
+    const by = Math.floor(ty / 8);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -2; dx <= 2; dx++) Game.explored.add(`${Game.player.map}:${bx + dx},${by + dy}`);
+    const meta = this.loaded.meta;
+    if (!meta) return;
+    const rid = REGION_IDS[meta.region[ty * this.map.w + tx]];
+    if (rid && rid !== 'meer' && rid !== this.region) {
+      this.region = rid;
+      this.game.events.emit('hud-banner', REGIONS[rid].name);
+      this.registry.set('region', rid);
+      if (rid === 'runenhall' && Game.quests.stage('q-start') === 2) Game.quests.set('q-start', 3);
+    }
+    for (const t of TOWNS) {
+      if (Math.hypot(t.x - tx, t.y - ty) < 16 && !Game.visited.has(t.id)) {
+        Game.visited.add(t.id);
+        this.toast(`Neue Stadt entdeckt: ${t.name}`);
+      }
+    }
+  }
+
+  // ------------------------------------------------------------ Update
 
   override update(time: number, delta: number): void {
     const dt = Math.min(delta, 50) / 1000;
@@ -595,9 +961,8 @@ export class WorldScene extends BaseScene {
       this.anims.resumeAll();
     }
 
-    // Aura-Rad: Zeit läuft verlangsamt
     const simDt = this.wheelOpen ? dt * 0.25 : dt;
-    const busy = this.messageOpen() || this.dying;
+    const busy = this.messageOpen() || this.dying || this.warping;
 
     if (!busy && this.levelUpPending && Game.prog.pending > 0 && !this.wheelOpen) {
       this.levelUpPending = false;
@@ -608,9 +973,6 @@ export class WorldScene extends BaseScene {
     if (!busy) {
       this.updateAuraInput(dt);
       this.player.frozen = this.wheelOpen;
-    }
-
-    if (!busy) {
       if (Input.justPressed('pause')) {
         this.openPause();
         return;
@@ -619,9 +981,11 @@ export class WorldScene extends BaseScene {
         this.openBook();
         return;
       }
-      if (Input.justPressed('map')) this.toast('Die Weltkarte mit Fog-of-War folgt mit den Regionen.');
+      if (Input.justPressed('map')) {
+        this.openMap();
+        return;
+      }
       this.player.update(simDt, Input);
-      // Spielzeit, 60-Sekunden-Regel, Effekte
       Game.tick(simDt);
       this.autosaveT += dt;
       if (this.autosaveT > AUTOSAVE_SECONDS) {
@@ -634,7 +998,6 @@ export class WorldScene extends BaseScene {
     Game.player.x = this.player.x;
     Game.player.y = this.player.y;
     this.ground.update(dt, this.player.x, this.player.y);
-
     if (this.dying) this.player.update(dt, Input);
     this.updateCamera(dt);
     const view = this.cameras.main.worldView;
@@ -645,12 +1008,15 @@ export class WorldScene extends BaseScene {
       this.projectiles.update(simDt, time);
       this.decoy.update(simDt, time);
     }
+    for (const n of this.npcs) n.update(simDt, this.player.x, this.player.y);
     this.numbers.update(dt);
     this.fx.update(dt);
-
-    for (const n of this.npcs) {
-      n.sprite.setPosition(n.x, n.y);
-      n.shadow.setPosition(n.x, n.y);
+    this.updateRegion(dt);
+    this.game.events.emit('world-update', dt, time);
+    // versteckte Stellen nur mit Aura-Sinn sichtbar
+    for (const i of this.hiddenSpots) {
+      const s = this.objects.spriteOf(i);
+      if (s) s.setAlpha(this.player.sense ? 0.6 + Math.sin(time / 150) * 0.4 : 0);
     }
 
     const aim = this.aimWorld();
@@ -661,31 +1027,6 @@ export class WorldScene extends BaseScene {
     this.registry.set('playerCell', [Math.floor(this.player.x / TILE), Math.floor(this.player.y / TILE)]);
     this.registry.set('playerPos', [this.player.x, this.player.y]);
     this.registry.set('activeObjects', this.objects.activeCount);
-  }
-
-  openPause(): void {
-    Input.setContext('menu');
-    this.scene.pause();
-    this.scene.pause('Hud');
-    this.scene.launch('Pause');
-  }
-
-  openLevelUp(): void {
-    Input.setContext('menu');
-    this.scene.pause();
-    this.scene.pause('Hud');
-    this.scene.setVisible(false, 'Hud');
-    this.scene.launch('LevelUp');
-  }
-
-  openBook(tab?: string): void {
-    if (!this.scene.isActive()) return;
-    Input.setContext('menu');
-    this.scene.pause();
-    this.scene.pause('Hud');
-    // HUD ausblenden, damit nichts hinter den Buch-Reitern hervorschaut
-    this.scene.setVisible(false, 'Hud');
-    this.scene.launch('Book', { tab });
   }
 
   private debugKeys(): void {
@@ -707,12 +1048,10 @@ export class WorldScene extends BaseScene {
     }
     if (Input.keyPressed('F6')) this.player.hurt(this.player.x + 10, this.player.y);
     if (Input.keyPressed('F7')) {
-      // Debug: zufällige Karte in die Hand
       const free = ALL_CARDS.filter((c) => Game.registry.canCreate(c.id));
       if (free.length) Game.giveCard(free[Math.floor(Math.random() * free.length)].id);
     }
     if (Input.keyPressed('F8')) {
-      // Debug: 10 zufällige Sammelkarten direkt ins Buch
       for (let i = 0; i < 10; i++) {
         const free = SAMMELKARTEN.filter((c) => Game.registry.canCreate(c.id) && Game.book.sammel[c.no] === null);
         if (!free.length) break;
@@ -731,7 +1070,6 @@ export class WorldScene extends BaseScene {
       for (const e of this.enemies.list) if (e.active && e.team === 'enemy') this.enemies.damage(e, { dmg: 9999, crit: false }, { fromX: this.player.x, fromY: this.player.y, kb: 0, src: 'special' });
     }
     if (Input.keyPressed('KeyJ')) {
-      // Debug: Monster der Wahl neben der Spielfigur
       const ids = Object.keys(MONSTER_BY_ID);
       const idx = ((this.registry.get('dbgMon') as number) ?? -1) + 1;
       this.registry.set('dbgMon', idx % ids.length);

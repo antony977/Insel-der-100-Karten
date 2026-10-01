@@ -12,6 +12,11 @@ import { BookScene } from './scenes/BookScene';
 import { DialogScene } from './scenes/DialogScene';
 import { SlotsScene } from './scenes/SlotsScene';
 import { LevelUpScene } from './scenes/LevelUpScene';
+import { TalkScene } from './scenes/TalkScene';
+import { ShopScene } from './scenes/ShopScene';
+import { ChoiceScene } from './scenes/ChoiceScene';
+import { MapScene } from './scenes/MapScene';
+import { NewGameScene } from './scenes/NewGameScene';
 import { SaveSystem } from './systems/SaveSystem';
 import { Game } from './systems/GameState';
 import { Display } from './systems/Display';
@@ -55,7 +60,7 @@ const game = new Phaser.Game({
     antialiasGL: false,
     pixelArt: true,
   },
-  scene: [BootScene, TitleScene, WorldScene, HudScene, BookScene, PauseScene, SettingsScene, KeysScene, SlotsScene, DialogScene, LevelUpScene],
+  scene: [BootScene, TitleScene, WorldScene, HudScene, BookScene, PauseScene, SettingsScene, KeysScene, SlotsScene, DialogScene, LevelUpScene, TalkScene, ShopScene, ChoiceScene, MapScene, NewGameScene],
   callbacks: {
     postBoot: (g) => {
       g.registry.set('cursorCss', cursorCss);

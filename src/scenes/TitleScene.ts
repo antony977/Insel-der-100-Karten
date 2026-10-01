@@ -86,7 +86,7 @@ export class TitleScene extends BaseScene {
   private startGame(cont: boolean): void {
     this.menu.enabled = false;
     this.cameras.main.fadeOut(260, 13, 10, 20);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('World', { continue: cont }));
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => (cont ? this.scene.start('World', { continue: true }) : this.scene.start('NewGame')));
   }
 
   private continueGame(): void {

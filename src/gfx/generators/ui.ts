@@ -289,9 +289,8 @@ export function phoneIcon(): Raster {
 export const ABILITY_W = 92;
 export const ABILITY_H = 124;
 
-export function abilityCards(): Raster {
-  const ramps: Ramp[] = [RAMPS.red, RAMPS.green, RAMPS.blue, RAMPS.gold];
-  const out = new Raster(ABILITY_W * 4, ABILITY_H);
+export function abilityCards(ramps: Ramp[] = [RAMPS.red, RAMPS.green, RAMPS.blue, RAMPS.gold]): Raster {
+  const out = new Raster(ABILITY_W * ramps.length, ABILITY_H);
   ramps.forEach((rp, f) => {
     const r = new Raster(ABILITY_W, ABILITY_H);
     const W = ABILITY_W;

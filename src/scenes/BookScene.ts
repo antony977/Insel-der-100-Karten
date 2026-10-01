@@ -13,8 +13,12 @@ import { BOOK_H, BOOK_W, CARD_H, CARD_W } from '../gfx/generators/cardArt';
 import { measureText, wrapText } from '../gfx/font/PixelFont';
 import { formatPlayTime, SaveSystem } from '../systems/SaveSystem';
 import type { EquipSlot, Stats } from '../data/cardTypes';
+import { AFFINITY_BY_ID } from '../data/aura';
+import { allQuests, questDef } from '../systems/Quests';
+import { castSpell } from '../systems/Spells';
+import type { WorldScene } from './WorldScene';
 
-type Tab = 'sammel' | 'frei' | 'hand' | 'beutel' | 'status';
+type Tab = 'sammel' | 'frei' | 'hand' | 'beutel' | 'status' | 'quests';
 
 const TABS: { id: Tab; label: string; frame: number }[] = [
   { id: 'sammel', label: 'Sammlung', frame: 0 },
@@ -22,7 +26,25 @@ const TABS: { id: Tab; label: string; frame: number }[] = [
   { id: 'hand', label: 'Hand', frame: 3 },
   { id: 'beutel', label: 'Beutel', frame: 2 },
   { id: 'status', label: 'Status', frame: 4 },
+  { id: 'quests', label: 'Quests', frame: 5 },
 ];
+
+const BUFF_NAMES: Record<string, string> = {
+  laubschild: 'Laubschild',
+  spiegelblatt: 'Spiegelblatt',
+  tresor: 'Tresorsiegel',
+  dornen: 'Dornenhülle',
+  nebelmantel: 'Nebelmantel',
+  bannkreis: 'Bannkreis',
+  gegenlicht: 'Gegenlicht',
+  anker: 'Ankerstein',
+  gebannt: 'Buch versiegelt!',
+  leuchtspur: 'Leuchtspur',
+  zeitstopp: 'Zeitstopp',
+  muenzglueck: 'Münzglück',
+  klimaschutz: 'Klimaschutz',
+  'aura-doppelt': 'Doppelte Aura-Regeneration',
+};
 
 const BX = Math.round((GAME_W - BOOK_W) / 2);
 const BY = GAME_H - BOOK_H - 4;
@@ -58,7 +80,7 @@ interface Button {
  */
 export class BookScene extends BaseScene {
   private tab: Tab = 'sammel';
-  private pages: Record<Tab, number> = { sammel: 0, frei: 0, hand: 0, beutel: 0, status: 0 };
+  private pages: Record<Tab, number> = { sammel: 0, frei: 0, hand: 0, beutel: 0, status: 0, quests: 0 };
   private sel = 0;
   private focus: 'grid' | 'buttons' = 'grid';
   private btnSel = 0;
@@ -217,7 +239,7 @@ export class BookScene extends BaseScene {
     });
   }
 
-  private close(): void {
+  private close(after?: () => void): void {
     if (this.closing) return;
     this.closing = true;
     this.busy = true;
@@ -233,6 +255,7 @@ export class BookScene extends BaseScene {
         this.scene.setVisible(true, 'Hud');
         this.scene.resume('Hud');
         this.scene.resume('World');
+        if (after) this.scene.get('World').time.delayedCall(40, after);
       },
     });
   }
@@ -285,9 +308,18 @@ export class BookScene extends BaseScene {
         return Math.ceil(FREE_SLOTS / PER_PAGE);
       case 'beutel':
         return Math.max(1, Math.ceil(this.bagEntries().length / LIST_ROWS));
+      case 'quests':
+        return Math.max(1, Math.ceil(this.questList().length / LIST_ROWS));
       default:
         return 1;
     }
+  }
+
+  private questList(): string[] {
+    const all = allQuests().filter((q) => Game.quests.stage(q.id) > 0);
+    const active = all.filter((q) => !Game.quests.done(q.id)).map((q) => q.id);
+    const done = all.filter((q) => Game.quests.done(q.id)).map((q) => q.id);
+    return [...active, ...done];
   }
 
   /** Anzahl auswählbarer Einträge auf der aktuellen Seite */
@@ -302,6 +334,8 @@ export class BookScene extends BaseScene {
         return Math.max(1, Game.book.hand.length);
       case 'beutel':
         return Math.max(1, Math.min(LIST_ROWS, this.bagEntries().length - p * LIST_ROWS));
+      case 'quests':
+        return Math.max(1, Math.min(LIST_ROWS, this.questList().length - p * LIST_ROWS));
       default:
         return 1;
     }
@@ -374,6 +408,7 @@ export class BookScene extends BaseScene {
     this.selFrame.setVisible(false);
     if (this.tab === 'sammel' || this.tab === 'frei' || this.tab === 'hand') this.renderGrid();
     else if (this.tab === 'beutel') this.renderBag();
+    else if (this.tab === 'quests') this.renderQuests();
     else this.renderStatus();
     this.renderButtons();
     this.updateHint();
@@ -490,8 +525,11 @@ export class BookScene extends BaseScene {
       } else if (slot.area === 'frei' && c.kind === 'sammel' && book.sammel[c.no] === null) {
         this.buttons.push({ label: 'Einordnen', run: () => this.doFile(uid), enabled: true });
       }
-      if (isSpell) this.buttons.push({ label: 'Wirken', run: () => this.flash('Zauber wirken folgt in Meilenstein 4.'), enabled: false });
-      else this.buttons.push({ label: 'Entfessle!', run: () => this.doUnleash(uid), enabled: true });
+      if (isSpell) {
+        const q = Game.quick.indexOf(uid);
+        this.buttons.push({ label: 'Wirken', run: () => this.castNow(uid), enabled: slot.area === 'frei' });
+        if (slot.area === 'frei') this.buttons.push({ label: q >= 0 ? `Taste ${q + 1}` : 'Auf Taste', run: () => this.cycleQuick(uid), enabled: true });
+      } else this.buttons.push({ label: 'Entfessle!', run: () => this.doUnleash(uid), enabled: true });
       if (slot.area === 'hand') {
         this.buttons.push({ label: 'Ablegen', run: () => this.doDrop(uid), enabled: true });
       } else {
@@ -582,8 +620,14 @@ export class BookScene extends BaseScene {
     const st = inv.stats();
     const x = LEFT_X + 10;
     let y = PAGE_Y + 4;
-    this.text(x - 2, y, Game.player.name, HEAD);
-    y += 16;
+    const pr = Game.prog;
+    const aff = AFFINITY_BY_ID[pr.affinity];
+    this.text(x - 2, y, `${Game.player.name} · Stufe ${pr.level}`, HEAD);
+    y += 12;
+    this.text(x - 2, y, `${aff.name}-Aura · Technik: ${pr.techName}`, PAL.wood, { maxWidth: PAGE_W - 16 });
+    y += 13;
+    this.text(x - 2, y, `Erfahrung ${pr.xp} / ${pr.xpNext}`, INK);
+    y += 13;
     const rows: [string, string][] = [
       ['LP', `${Math.round(inv.lp)} / ${st.lp}`],
       ['Aura', `${Math.round(inv.aura)} / ${st.aura}`],
@@ -621,9 +665,16 @@ export class BookScene extends BaseScene {
       this.text(rx, ry, 'Aktive Effekte', HEAD);
       ry += 14;
       for (const [b, s] of inv.buffs) {
-        this.text(rx, ry, `${b}: ${Math.ceil(s)} s`, INK);
+        this.text(rx, ry, s > 1e6 ? `${BUFF_NAMES[b] ?? b} (aktiv)` : `${BUFF_NAMES[b] ?? b}: ${Math.ceil(s)} s`, INK);
         ry += 12;
       }
+      ry += 4;
+    }
+    const qs = Game.quick.map((u, i) => `${i + 1}: ${u !== null && Game.book.locate(u) ? card(Game.registry.idOf(u)).name : '–'}`);
+    if (ry < PAGE_Y + 160) {
+      this.text(rx, ry, 'Schnellzauber', HEAD);
+      ry += 13;
+      this.text(rx, ry, qs.join('\n'), INK);
     }
     this.buttons = [
       { label: 'Speichern', run: () => this.flash(SaveSystem.autosave() ? 'Automatisch gespeichert.' : 'Speichern fehlgeschlagen.'), enabled: true },
@@ -731,6 +782,73 @@ export class BookScene extends BaseScene {
     const r = Game.book.takeOut(uid);
     this.flash(r === 'ok' ? 'In der Hand – 60 Sekunden bis zur Verwandlung!' : MOVE_MESSAGES[r]);
     Game.events.emit('book-changed');
+  }
+
+  private castNow(uid: number): void {
+    this.close(() => {
+      const w = this.scene.get('World') as unknown as WorldScene;
+      const r = castSpell(uid, w.spellHost());
+      if (r) w.toast(r);
+    });
+  }
+
+  private cycleQuick(uid: number): void {
+    const cur = Game.quick.indexOf(uid);
+    if (cur >= 0) Game.quick[cur] = null;
+    const next = cur + 1;
+    if (next <= 2) {
+      Game.quick[next] = uid;
+      this.flash(`Auf Schnelltaste ${next + 1} gelegt.`);
+    } else this.flash('Von den Schnelltasten entfernt.');
+    Game.events.emit('book-changed');
+    this.render();
+  }
+
+  private renderQuests(): void {
+    const list = this.questList();
+    const p = this.pages.quests;
+    this.text(LEFT_X + 8, PAGE_Y + 4, 'Quest-Log', HEAD);
+    const shown = list.slice(p * LIST_ROWS, p * LIST_ROWS + LIST_ROWS);
+    if (!shown.length) {
+      this.text(LEFT_X + 8, PAGE_Y + 24, 'Noch keine Aufträge. Sprich mit den Leuten auf der Insel!', INK, { maxWidth: PAGE_W - 16 });
+      this.buttons = [];
+      return;
+    }
+    shown.forEach((id, i) => {
+      const q = questDef(id)!;
+      const y = PAGE_Y + 22 + i * LIST_ROW_H;
+      const done = Game.quests.done(id);
+      if (i === this.sel) {
+        const hl = this.add.rectangle(LEFT_X + 4, y - 2, PAGE_W - 8, LIST_ROW_H, PAL.gold, 0.35).setOrigin(0, 0);
+        this.content.add(hl);
+        this.dynamic.push(hl);
+      }
+      this.text(LEFT_X + 8, y + 1, `${done ? '✓ ' : ''}${q.name}`, done ? PAL.sandShade : INK);
+      const z = this.add.zone(LEFT_X + 4, y - 2, PAGE_W - 8, LIST_ROW_H).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      z.on('pointerdown', () => {
+        this.sel = i;
+        this.render();
+      });
+      this.content.add(z);
+      this.dynamic.push(z);
+    });
+    const id = shown[Math.min(this.sel, shown.length - 1)];
+    const q = questDef(id)!;
+    const rx = RIGHT_X + 8;
+    let ry = PAGE_Y + 6;
+    const t1 = this.text(rx, ry, q.name, HEAD, { maxWidth: PAGE_W - 16 });
+    ry += t1.height + 4;
+    this.text(rx, ry, q.where, PAL.wood);
+    ry += 16;
+    const stage = Game.quests.stage(id);
+    q.steps.forEach((step, i) => {
+      if (i >= stage) return;
+      const cur = i === stage - 1 && !Game.quests.done(id);
+      const t = this.text(rx, ry, `${cur ? '▶ ' : '✓ '}${step}`, cur ? INK : PAL.sandShade, { maxWidth: PAGE_W - 16 });
+      ry += t.height + 5;
+    });
+    if (Game.quests.done(id)) this.text(rx, ry + 4, 'Abgeschlossen!', PAL.leaf);
+    this.buttons = [];
   }
 
   private doDrop(uid: number): void {

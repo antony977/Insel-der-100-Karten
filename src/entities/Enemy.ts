@@ -74,6 +74,8 @@ export class Enemy {
   frame = -1;
   key = '';
   size = 16;
+  /** Kennung für Quests (z. B. besonderer Dieb) */
+  tag = '';
 
   constructor(scene: Phaser.Scene) {
     this.shadow = scene.add.image(0, 0, 'shadow').setDepth(DEPTH.shadows).setVisible(false);
@@ -86,6 +88,7 @@ export class Enemy {
   spawn(def: MonsterDef, x: number, y: number, team: EnemyTeam, hpMul = 1, atkMul = 1): void {
     this.id = nextId++;
     this.def = def;
+    this.tag = '';
     this.team = team;
     this.active = true;
     this.x = this.homeX = x;

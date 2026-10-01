@@ -4,6 +4,8 @@ import { Book, OUTSIDE_SECONDS, type BookSave, MOVE_MESSAGES } from './cards/Boo
 import { CardRegistry, type RegistrySave } from './cards/CardRegistry';
 import { Inventory, type InventorySave, type UseAction } from './cards/Inventory';
 import { Progress, type ProgressSave } from './Progress';
+import { QuestLog } from './Quests';
+import { RivalStore, type RivalSave } from './Rivals';
 
 export const SAVE_VERSION = 1;
 
@@ -36,7 +38,20 @@ export interface SaveData {
   prog?: ProgressSave;
   clock?: number;
   day?: number;
+  quests?: [string, number][];
+  visited?: string[];
+  quick?: (number | null)[];
+  lastWell?: { map: string; x: number; y: number; town: string } | null;
+  protectedCards?: number[];
+  lost?: string[];
+  vars?: [string, number][];
+  explored?: string[];
+  rivals?: RivalSave[];
+  castLog?: { who: string; spell: string; t: number }[];
 }
+
+/** Namen der Rivalen (für das Laden) */
+export const RIVAL_NAMES: Record<string, string> = {};
 
 type Handler = (...args: never[]) => void;
 
@@ -83,11 +98,29 @@ export class GameStateStore {
   discovered = new Set<string>();
   ground: GroundEntry[] = [];
   playTime = 0;
-  player = { map: 'testwiese', x: 0, y: 0, name: 'Kai' };
+  player = { map: 'insel', x: 0, y: 0, name: 'Kai' };
   prog = new Progress();
   /** Uhrzeit in Spielminuten (0–1439); 1 echte Sekunde = 2 Spielminuten */
   clock = 8 * 60;
   day = 1;
+  quests = new QuestLog();
+  /** besuchte Städte (für Stadtsprung) */
+  visited = new Set<string>();
+  /** Schnellzauber-Tasten 1–3 (Karten-UIDs) */
+  quick: (number | null)[] = [null, null, null];
+  /** zuletzt berührter Stadtbrunnen */
+  lastWell: { map: string; x: number; y: number; town: string } | null = null;
+  /** dauerhaft geschützte Karten (Siegelband) */
+  protectedCards = new Set<number>();
+  /** zuletzt verlorene Karten (für Phönixtinte) */
+  lost: string[] = [];
+  /** Zahlenwerte für Quests (z. B. Zählerstände) */
+  vars = new Map<string, number>();
+  /** erkundete 8×8-Blöcke je Karte (Weltkarte) */
+  explored = new Set<string>();
+  rivals = new RivalStore();
+  /** wer zuletzt Zauber auf die Spielfigur gewirkt hat (Wirkerspur) */
+  castLog: { who: string; spell: string; t: number }[] = [];
   readonly events = new Emitter();
   private groundKey = 1;
   private regenAcc = 0;
@@ -101,10 +134,21 @@ export class GameStateStore {
     this.ground = [];
     this.groundKey = 1;
     this.playTime = 0;
-    this.player = { map: 'testwiese', x: 0, y: 0, name: 'Kai' };
+    this.player = { map: 'insel', x: 0, y: 0, name: this.player?.name ?? 'Kai' };
     this.prog = new Progress();
     this.clock = 8 * 60;
     this.day = 1;
+    this.quests = new QuestLog();
+    this.visited = new Set();
+    this.quick = [null, null, null];
+    this.lastWell = null;
+    this.protectedCards = new Set();
+    this.lost = [];
+    this.vars = new Map();
+    this.explored = new Set();
+    this.rivals = new RivalStore();
+    this.castLog = [];
+    this.player.map = 'insel';
     this.syncBonus();
     this.events.emit('book-changed');
     this.events.emit('vitals-changed');
@@ -236,6 +280,7 @@ export class GameStateStore {
       this.events.emit('ground-changed');
     }
     this.inv.tick(dt);
+    this.rivals.tick(dt);
     // Regeneration (Rosenquarz)
     const regen = this.inv.stats().regen;
     if (regen > 0) {
@@ -249,6 +294,45 @@ export class GameStateStore {
         }
       }
     }
+  }
+
+  /** Besitzt man die Karte (im Buch/Hand) oder ihren entfesselten Gegenstand? */
+  hasThing(id: string): boolean {
+    if (this.countCard(id) > 0) return true;
+    const u = card(id).unleash;
+    if (u.kind === 'tool') return this.inv.tools.has(u.tool);
+    if (u.kind === 'key') return this.inv.keys.has(u.key);
+    if (u.kind === 'equip') return this.inv.isEquipped(id) || this.inv.bag.has(id);
+    return this.inv.bag.has(id);
+  }
+
+  kills(monster: string): number {
+    return this.prog.kills.get(monster) ?? 0;
+  }
+
+  /** Wie oft besitzt die Spielfigur diese Karte (Buch + Hand)? */
+  countCard(id: string): number {
+    let n = 0;
+    for (const u of this.book.sammel) if (u !== null && this.registry.idOf(u) === id) n++;
+    for (const u of this.book.frei) if (u !== null && this.registry.idOf(u) === id) n++;
+    for (const h of this.book.hand) if (this.registry.idOf(h.uid) === id) n++;
+    return n;
+  }
+
+  /** Karten abgeben (Quest): zuerst aus der Hand, dann freie Slots, zuletzt Sammelseiten. */
+  takeCards(id: string, n: number): boolean {
+    if (this.countCard(id) < n) return false;
+    const uids: number[] = [];
+    for (const h of this.book.hand) if (this.registry.idOf(h.uid) === id) uids.push(h.uid);
+    for (const u of this.book.frei) if (u !== null && this.registry.idOf(u) === id) uids.push(u);
+    for (const u of this.book.sammel) if (u !== null && this.registry.idOf(u) === id) uids.push(u);
+    for (const uid of uids.slice(0, n)) {
+      this.book.remove(uid);
+      this.registry.destroy(uid);
+      this.quick = this.quick.map((q) => (q === uid ? null : q));
+    }
+    this.events.emit('book-changed');
+    return true;
   }
 
   /** Stufen-/Talentwerte ins Inventar übertragen */
@@ -305,6 +389,7 @@ export class GameStateStore {
       this.registry.destroy(h.uid);
     }
     this.prog.deaths++;
+    this.quick = this.quick.map((q) => (q !== null && this.book.locate(q) ? q : null));
     const st = this.inv.stats();
     this.inv.lp = st.lp;
     this.inv.aura = st.aura;
@@ -330,6 +415,16 @@ export class GameStateStore {
       prog: this.prog.serialize(),
       clock: this.clock,
       day: this.day,
+      quests: this.quests.serialize(),
+      visited: [...this.visited],
+      quick: [...this.quick],
+      lastWell: this.lastWell ? { ...this.lastWell } : null,
+      protectedCards: [...this.protectedCards],
+      lost: [...this.lost],
+      vars: [...this.vars],
+      explored: [...this.explored],
+      rivals: this.rivals.serialize(),
+      castLog: this.castLog.map((c) => ({ ...c })),
     };
   }
 
@@ -350,6 +445,18 @@ export class GameStateStore {
     this.prog.load(d.prog);
     this.clock = d.clock ?? 8 * 60;
     this.day = d.day ?? 1;
+    this.quests = new QuestLog();
+    this.quests.load(d.quests);
+    this.visited = new Set(d.visited ?? []);
+    this.quick = d.quick ? [...d.quick] : [null, null, null];
+    this.lastWell = d.lastWell ?? null;
+    this.protectedCards = new Set(d.protectedCards ?? []);
+    this.lost = [...(d.lost ?? [])];
+    this.vars = new Map(d.vars ?? []);
+    this.explored = new Set(d.explored ?? []);
+    this.rivals = new RivalStore();
+    this.rivals.load(d.rivals, RIVAL_NAMES);
+    this.castLog = d.castLog ?? [];
     this.syncBonus();
     this.events.emit('book-changed');
     this.events.emit('vitals-changed');

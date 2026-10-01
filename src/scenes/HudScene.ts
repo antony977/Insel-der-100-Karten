@@ -10,6 +10,10 @@ import { keyLabel } from '../input/Actions';
 import { charFrame } from '../gfx/generators/characters';
 import { wrapText } from '../gfx/font/PixelFont';
 import type { WorldMap } from '../world/WorldMap';
+import { TERRAIN_BY_ID } from '../world/terrain';
+import { abgr } from '../gfx/palette';
+
+const TERRAINS_MINI: number[] = TERRAIN_BY_ID.map((t) => abgr(t.mini));
 import { Game } from '../systems/GameState';
 import { cardIndex } from '../data/cards';
 import { OUTSIDE_SECONDS } from '../systems/cards/Book';
@@ -83,6 +87,11 @@ export class HudScene extends BaseScene {
   private wheelCenter!: Phaser.GameObjects.BitmapText;
   private vignette!: Phaser.GameObjects.Graphics;
   private activeIcons: Phaser.GameObjects.Image[] = [];
+  private slotIcons: { icon: Phaser.GameObjects.Image; num: Phaser.GameObjects.BitmapText; key: Phaser.GameObjects.BitmapText }[] = [];
+  private quickKey = '';
+  private banner!: Phaser.GameObjects.BitmapText;
+  private bannerT = 0;
+  private arrow!: Phaser.GameObjects.Triangle;
 
   constructor() {
     super('Hud');
@@ -92,6 +101,8 @@ export class HudScene extends BaseScene {
     this.setupCamera();
     this.toasts = [];
     this.slots = [];
+    this.slotIcons = [];
+    this.quickKey = '';
 
     // --- Werte oben links ---
     addPanel(this, 4, 4, 112, 52);
@@ -122,6 +133,8 @@ export class HudScene extends BaseScene {
     this.activeIcons = [0, 1, 2].map((i) => this.add.image(152 + i * 12, 10, 'ability-icons', 9).setOrigin(0, 0).setScale(0.625).setVisible(false));
     this.buildWheel();
     this.vignette = this.add.graphics().setDepth(-1);
+    this.banner = addText(this, GAME_W / 2, 58, '', { font: 'px-o', ox: 0.5, color: PAL.cream, scale: 2 }).setAlpha(0).setDepth(30);
+    this.arrow = this.add.triangle(0, 0, 0, -6, 5, 4, -5, 4, PAL.gold).setStrokeStyle(1, PAL.ink).setVisible(false).setDepth(20);
 
     // --- Sammelfortschritt (oben Mitte) ---
     addPanel(this, GAME_W / 2 - 34, 4, 68, 18);
@@ -140,8 +153,11 @@ export class HudScene extends BaseScene {
       const c = this.add.container(x, GAME_H - 34);
       const frame = addPanel(this, 0, 0, 22, 28, 'ui-frame');
       const num = addText(this, 11, 8, String(i + 1), { font: 'px-o', ox: 0.5, color: PAL.ice });
-      c.add([frame, num]);
+      const icon = this.add.image(11, 15, 'card-icons', 0).setVisible(false);
+      const key = addText(this, 3, 1, String(i + 1), { font: 'px', color: PAL.ice }).setVisible(false);
+      c.add([frame, num, icon, key]);
       this.slots.push(c);
+      this.slotIcons.push({ icon, num, key });
     }
 
     // --- Karten in der Hand (unten Mitte) ---
@@ -170,6 +186,12 @@ export class HudScene extends BaseScene {
     // --- Meldungsfenster ---
     this.buildMessageBox();
 
+    const onBanner = (t: string) => {
+      this.banner.setText(t).setAlpha(0).setY(64);
+      this.bannerT = 2.6;
+    };
+    this.game.events.on('hud-banner', onBanner);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.game.events.off('hud-banner', onBanner));
     const onToast = (t: string) => this.toast(t);
     const onMsg = (m: HudMessage) => this.showMessage(m);
     this.game.events.on(HUD_EVENTS.toast, onToast);
@@ -234,13 +256,11 @@ export class HudScene extends BaseScene {
     canvas.width = map.w;
     canvas.height = map.h;
     const ctx = canvas.getContext('2d')!;
-    const colors = ['#2546a8', '#e8c47e', '#c99a5b', '#6cc24a', '#2f8a3e', '#968daa'];
-    for (let y = 0; y < map.h; y++) {
-      for (let x = 0; x < map.w; x++) {
-        ctx.fillStyle = colors[map.terrain[y * map.w + x]] ?? '#000';
-        ctx.fillRect(x, y, 1, 1);
-      }
-    }
+    const img = ctx.createImageData(map.w, map.h);
+    const px = new Uint32Array(img.data.buffer);
+    const colors = TERRAINS_MINI;
+    for (let i = 0; i < map.w * map.h; i++) px[i] = colors[map.terrain[i]] ?? 0xff000000;
+    ctx.putImageData(img, 0, 0);
     this.textures.addCanvas('minimap', canvas);
   }
 
@@ -340,7 +360,6 @@ export class HudScene extends BaseScene {
       y = Math.max(4, Math.ceil((buttonsBottomCss - rect.top) / scale));
     }
     this.minimapFrame.setY(y);
-    this.minimap.setY(y + 4);
   }
 
   override update(time: number, delta: number): void {
@@ -425,6 +444,79 @@ export class HudScene extends BaseScene {
     this.updateHand(time);
     this.updateWheel();
     this.updateVignette(time);
+    this.updateQuick();
+    this.updateBanner(dt);
+    this.updateArrow(time);
+  }
+
+  private updateBanner(dt: number): void {
+    if (this.bannerT <= 0) return;
+    this.bannerT -= dt;
+    const t = 2.6 - this.bannerT;
+    const a = t < 0.3 ? t / 0.3 : this.bannerT < 0.5 ? this.bannerT / 0.5 : 1;
+    this.banner.setAlpha(Math.max(0, a)).setY(64 - Math.min(1, t / 0.3) * 6);
+  }
+
+  /** Leuchtspur: Pfeil zur nächsten herumliegenden Karte */
+  private updateArrow(time: number): void {
+    const on = Game.inv.buffs.has('leuchtspur');
+    const pos = this.registry.get('playerPos') as [number, number] | undefined;
+    if (!on || !pos) {
+      this.arrow.setVisible(false);
+      return;
+    }
+    let best: { x: number; y: number } | null = null;
+    let bd = 1e9;
+    for (const g of Game.ground) {
+      if (g.kind !== 'card' || g.map !== Game.player.map) continue;
+      const d = Math.hypot(g.x - pos[0], g.y - pos[1]);
+      if (d < bd) {
+        bd = d;
+        best = g;
+      }
+    }
+    if (!best) {
+      this.arrow.setVisible(false);
+      return;
+    }
+    const a = Math.atan2(best.y - pos[1], best.x - pos[0]);
+    const r = 40 + Math.sin(time / 150) * 3;
+    this.arrow.setVisible(true).setPosition(GAME_W / 2 + Math.cos(a) * r, GAME_H / 2 - 12 + Math.sin(a) * r).setRotation(a + Math.PI / 2);
+  }
+
+  /** Zauber auf den Schnelltasten anzeigen (HUD und Touch-Knöpfe) */
+  private updateQuick(): void {
+    const ids = Game.quick.map((u) => (u !== null && Game.book.locate(u) ? Game.registry.idOf(u) : ''));
+    const key = ids.join(',');
+    if (key === this.quickKey) return;
+    this.quickKey = key;
+    ids.forEach((id, i) => {
+      const s = this.slotIcons[i];
+      if (!s) return;
+      s.icon.setVisible(!!id);
+      s.num.setVisible(!id);
+      s.key.setVisible(!!id);
+      if (id) s.icon.setFrame(cardIndex(id));
+      const url = id ? this.iconUrl(id) : null;
+      window.dispatchEvent(new CustomEvent('quick-spell', { detail: { slot: i, url } }));
+    });
+  }
+
+  private iconCache = new Map<string, string>();
+
+  private iconUrl(id: string): string {
+    const c = this.iconCache.get(id);
+    if (c) return c;
+    const tex = this.textures.get('card-icons');
+    const fr = tex.get(cardIndex(id));
+    const canvas = document.createElement('canvas');
+    canvas.width = 16;
+    canvas.height = 16;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(tex.getSourceImage() as CanvasImageSource, fr.cutX, fr.cutY, 16, 16, 0, 0, 16, 16);
+    const url = canvas.toDataURL();
+    this.iconCache.set(id, url);
+    return url;
   }
 
   private updateVignette(time: number): void {

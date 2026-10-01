@@ -74,13 +74,14 @@ export class ObjectStreamer {
   private acquire(i: number): void {
     if (this.active.has(i)) return;
     const o = this.map.objects[i];
+    if (o.hidden) return;
     let s = this.pool.pop();
     if (!s) s = this.scene.add.sprite(0, 0, o.def.texture);
     s.setTexture(o.def.texture, o.frame ?? 0);
     s.setOrigin(o.def.footX / s.width, o.def.footY / s.height);
     s.setPosition(o.x, o.y);
     s.setDepth(o.y);
-    s.setVisible(true).setActive(true);
+    s.setVisible(true).setActive(true).setAlpha(1);
     if (o.def.anim) s.play({ key: `obj-${o.def.texture}`, startFrame: i % o.def.anim.frames });
     this.active.set(i, s);
   }
@@ -94,11 +95,21 @@ export class ObjectStreamer {
     this.pool.push(s);
   }
 
+  /** aktives Sprite eines Objekts (falls sichtbar) */
+  spriteOf(i: number): Phaser.GameObjects.Sprite | undefined {
+    return this.active.get(i);
+  }
+
   /** Aktualisiert die Darstellung eines Objekts (z. B. Truhe geöffnet). */
   refresh(i: number): void {
     const s = this.active.get(i);
     const o = this.map.objects[i];
+    if (o.hidden) {
+      this.release(i);
+      return;
+    }
     if (s && !o.def.anim) s.setFrame(o.frame ?? 0);
+    if (!s && this.activeChunks.has(this.map.chunkIndexAt(o.x, o.y))) this.acquire(i);
   }
 
   destroy(): void {

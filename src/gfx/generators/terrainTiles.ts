@@ -91,6 +91,55 @@ export function terrainPattern(p: TerrainPattern, seed: number, variant: number)
       }
       break;
     }
+    case 'rows': {
+      // Getreidefeld: Ähren-Reihen
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          const row = y % 4;
+          if (row === 3) r.set(x, y, p.dark);
+          else if (row === 0 && (x + variant) % 3 === 0) r.set(x, y, p.light);
+          else if ((x * 5 + y * 3 + variant) % 7 === 0) r.set(x, y, PAL.rust);
+        }
+      }
+      break;
+    }
+    case 'ripple': {
+      // Dünenrippel
+      for (let y = 2; y < 16; y += 5) {
+        for (let x = 0; x < 16; x++) {
+          const yy = y + Math.round(Math.sin((x + variant * 3) / 2.5));
+          r.set(x, ((yy % 16) + 16) % 16, p.dark);
+          r.set(x, ((yy - 1 + 16) % 16), p.light);
+        }
+      }
+      for (let i = 0; i < 2 + variant; i++) r.set(ri(0, 15), ri(0, 15), p.dark);
+      break;
+    }
+    case 'cracks': {
+      // Papierfasern / Linien
+      for (let i = 0; i < p.density + variant; i++) {
+        const x = ri(0, 12);
+        const y = ri(0, 15);
+        for (let k = 0; k < 4; k++) r.set(x + k, y, p.dark);
+      }
+      for (let i = 0; i < 3; i++) r.set(ri(0, 15), ri(0, 15), p.light);
+      break;
+    }
+    case 'rock': {
+      // Felsstruktur: kantige Brocken
+      for (let i = 0; i < p.density + variant; i++) {
+        const x = ri(0, 12);
+        const y = ri(1, 13);
+        const w = ri(2, 4);
+        for (let k = 0; k < w; k++) {
+          r.set(x + k, y, p.light);
+          r.set(x + k, y + 2, p.dark);
+        }
+        r.set(x, y + 1, p.light);
+        r.set(x + w, y + 1, p.dark);
+      }
+      break;
+    }
     case 'flat':
       break;
   }

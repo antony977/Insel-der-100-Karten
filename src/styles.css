@@ -141,3 +141,17 @@ body {
     transform: rotate(0deg);
   }
 }
+
+/* Zauber-Symbol auf den Schnellzauber-Knöpfen */
+#touch-ui .btn .spell-icon {
+  position: absolute;
+  left: 22%;
+  top: 30%;
+  width: 56%;
+  height: 48%;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  image-rendering: pixelated;
+  pointer-events: none;
+}

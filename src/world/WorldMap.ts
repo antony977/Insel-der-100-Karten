@@ -15,6 +15,8 @@ export interface WorldObject {
   frame?: number;
   /** eindeutiger Schlüssel für Spielstand-Flags (z. B. Truhen) */
   tag?: string;
+  /** entfernt (aufgehoben, Sperre geöffnet) */
+  hidden?: boolean;
 }
 
 export interface Box {
@@ -66,6 +68,8 @@ export class WorldMap {
   spawnX = 0;
   spawnY = 0;
   name = '';
+  /** benannte Ankunftspunkte (z. B. nach einer Bootsfahrt) */
+  spawnPoints: Record<string, { x: number; y: number }> = {};
 
   constructor(w: number, h: number) {
     this.w = w;
@@ -120,8 +124,9 @@ export class WorldMap {
     this.objects.push({ type, def, x, y, text, tag });
     const ck = this.chunkIndexAt(x, y);
     if (ck >= 0) this.chunkObjects[ck].push(idx);
-    if (def.box) {
-      const [bx, by, bw, bh] = def.box;
+    const boxes = def.boxes ? [...def.boxes] : [];
+    if (def.box) boxes.push(def.box);
+    for (const [bx, by, bw, bh] of boxes) {
       const box: Box = { x: x + bx, y: y + by, w: bw, h: bh, obj: idx };
       // Box in alle berührten Chunks eintragen
       const c0x = Math.floor(box.x / CHUNK_PX);
@@ -135,6 +140,46 @@ export class WorldMap {
       }
     }
     return idx;
+  }
+
+  private readonly removed = new Map<number, [number, Box][]>();
+
+  /** Objekt ausblenden und seine Kollision entfernen (z. B. geöffnete Wegsperre) */
+  removeObject(idx: number): void {
+    const o = this.objects[idx];
+    if (!o || o.hidden) return;
+    o.hidden = true;
+    const keep: [number, Box][] = [];
+    this.chunkBoxes.forEach((list, k) => {
+      for (let i = list.length - 1; i >= 0; i--) {
+        if (list[i].obj === idx) {
+          keep.push([k, list[i]]);
+          list.splice(i, 1);
+        }
+      }
+    });
+    this.removed.set(idx, keep);
+  }
+
+  /** Entferntes Objekt wiederherstellen */
+  restoreObject(idx: number): void {
+    const o = this.objects[idx];
+    if (!o || !o.hidden) return;
+    o.hidden = false;
+    for (const [k, b] of this.removed.get(idx) ?? []) this.chunkBoxes[k].push(b);
+    this.removed.delete(idx);
+  }
+
+  /** Dynamische Kollisionsboxen (z. B. Figuren) entfernen */
+  clearDynamicBoxes(): void {
+    for (const list of this.chunkBoxes) {
+      for (let i = list.length - 1; i >= 0; i--) if (list[i].obj < 0) list.splice(i, 1);
+    }
+  }
+
+  /** Objekte mit Tag finden */
+  findByTag(tag: string): number {
+    return this.objects.findIndex((o) => o.tag === tag);
   }
 
   chunkIndexAt(px: number, py: number): number {
@@ -202,7 +247,7 @@ export class WorldMap {
         if (kx < 0 || ky < 0 || kx >= this.chunksX || ky >= this.chunksY) continue;
         for (const i of this.chunkObjects[ky * this.chunksX + kx]) {
           const o = this.objects[i];
-          if (!o.def.interact) continue;
+          if (!o.def.interact || o.hidden) continue;
           const by = o.def.box ? o.y + o.def.box[1] / 2 : o.y;
           const dx = o.x - px;
           const dy = by - py;

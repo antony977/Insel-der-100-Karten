@@ -1,0 +1,258 @@
+import { registerDialogs, type DialogCtx, type DialogDef } from '../../systems/Dialog';
+import { registerQuests } from '../../systems/Quests';
+import { STARTER_CARDS } from '../treasures';
+
+registerQuests([
+  {
+    id: 'q-start',
+    name: 'Willkommen auf der Insel',
+    where: 'Taufeld · Lumi',
+    steps: ['Lege Lumis Startkarten in dein Kartenbuch.', 'Reise nach Runenhall im Norden und schau dir den Zauberladen an.', 'Du hast Runenhall erreicht. Viel Glück beim Sammeln!'],
+  },
+  {
+    id: 'q-wolle',
+    name: 'Wolle für Oma Hilde',
+    where: 'Taufeld · Oma Hilde',
+    steps: ['Bring Oma Hilde drei Wollknäuel-Karten (Nr. 093).', 'Oma Hilde hat dir eine Warme Wolldecke gestrickt.'],
+  },
+  {
+    id: 'q-glocke',
+    name: 'Die verlorene Glocke',
+    where: 'Taufeld · Bauer Korbinian',
+    steps: [
+      'Korbinians Glocke liegt irgendwo im hohen Gras östlich des Dorfs. Aura-Sinn hilft beim Suchen.',
+      'Du hast die Glocke gefunden. Bring sie Korbinian zurück.',
+      'Korbinian hat dir die Weidenglocke geschenkt.',
+    ],
+  },
+]);
+
+const has = (c: DialogCtx, id: string, n = 1) => c.g.countCard(id) >= n;
+
+const lumi: DialogDef = {
+  id: 'lumi',
+  start: (c) => {
+    if (!c.g.flags.has('lumi-start')) return 'intro';
+    if (c.g.quests.stage('q-start') === 1) {
+      const handHasStarter = c.g.book.hand.some((h) => STARTER_CARDS.includes(c.g.registry.idOf(h.uid)));
+      if (handHasStarter) return 'remind';
+      return 'next';
+    }
+    return 'tips';
+  },
+  nodes: {
+    intro: {
+      say: [
+        'Da bist du ja! Willkommen auf der Insel der 100 Karten, {name}. Ich bin Lumi, die Hüterin des Ersten Tors.',
+        'Hier ist alles eine Karte: Heiltränke, Werkzeuge, Schlüssel – sogar die Monster. Wer alle 100 Sammelkarten in seinem Buch vereint, ruft den Spielleiter herbei.',
+        'Und dann darf man die Insel verlassen – mit drei Karten als Andenken in die echte Welt. So erzählt man es sich jedenfalls.',
+        'Nimm diese drei Karten als Startgeschenk.',
+      ],
+      do: (c) => {
+        c.g.flags.add('lumi-start');
+        c.g.quests.set('q-start', 1);
+        for (const id of STARTER_CARDS) c.w.giveCard(id);
+      },
+      goto: 'book',
+    },
+    book: {
+      say: [
+        'Öffne jetzt dein Kartenbuch – Taste B oder der Buch-Knopf – und lege die Karten hinein.',
+        'Aber beeil dich: Eine Karte, die länger als 60 Sekunden ausserhalb des Buchs ist, verwandelt sich für immer in ihren Gegenstand!',
+      ],
+    },
+    remind: {
+      say: ['Du hast noch Karten in der Hand! Schnipp dein Buch auf und leg sie hinein, bevor die 60 Sekunden um sind.'],
+    },
+    next: {
+      say: [
+        'Sehr gut! Jetzt bist du bereit für die Insel.',
+        'Zauberkarten bekommst du in Runenhall im Norden – im Zauberladen „Zum blätternden Buch". Dort sitzt auch der Orden der Siegel.',
+        'Rund um Taufeld leben harmlose Wesen. Wenn du sie besiegst, verwandeln sie sich manchmal in ihre Karte. Probier es aus!',
+        'Und wenn du müde bist: An jedem Rastfeuer kannst du dich ausruhen und speichern.',
+      ],
+      do: (c) => {
+        c.g.quests.set('q-start', 2);
+      },
+    },
+    tips: {
+      say: ['Brauchst du einen Rat, {name}?'],
+      choices: [
+        { text: 'Erzähl mir von der Aura.', goto: 'aura' },
+        { text: 'Was bedeuten die Limits?', goto: 'limit' },
+        { text: 'Was passiert, wenn ich umfalle?', goto: 'death' },
+        { text: 'Was ist das Erste Tor?', goto: 'gate' },
+        { text: 'Danke, Lumi!' },
+      ],
+    },
+    aura: {
+      say: [
+        'Aura ist die Kraft, die in dir fliesst. Drück die Aura-Taste für deine gewählte Technik – oder halte sie, dann öffnet sich das Aura-Rad.',
+        'Mit Aura-Sinn siehst du Verborgenes, mit dem Aura-Stoss triffst du aus der Ferne. Schild und Fokus lernst du, wenn du stärker wirst.',
+        'Und irgendwann entdeckst du deine ganz eigene Technik: {tech}.',
+      ],
+      goto: 'tips',
+    },
+    limit: {
+      say: [
+        'Jede Karte gibt es nur begrenzt oft auf der ganzen Insel – das ist ihr Limit. Auch die anderen Sammler zählen mit.',
+        'Ist das Limit erreicht, bekommst du die Karte nur noch durch Tausch … oder weniger freundliche Wege.',
+      ],
+      goto: 'tips',
+    },
+    death: {
+      say: [
+        'Dann wachst du am letzten Rastfeuer wieder auf. Aber dein Geld und alle Karten in den freien Slots sind verloren.',
+        'Die Sammelseiten bleiben sicher. Darum: Wertvolles gehört in die Sammelseiten!',
+      ],
+      goto: 'tips',
+    },
+    gate: {
+      say: ['Durch dieses Tor kommen alle Neuankömmlinge auf die Insel. Wohin es führt, wenn man hindurchgeht? Zurück … aber erst, wenn das Buch voll ist.'],
+      goto: 'tips',
+    },
+  },
+};
+
+const wilma: DialogDef = {
+  id: 'wilma',
+  start: () => 'a',
+  nodes: {
+    a: {
+      say: ['Na, Neuankömmling? Bei mir gibt es alles, was man für die ersten Schritte braucht.'],
+      choices: [
+        { text: 'Laden ansehen', do: (c) => c.w.after(() => c.w.openShop('taufeld:kraemerin')) },
+        { text: 'Was gibt es Neues?', goto: 'news' },
+        { text: 'Tschüss!' },
+      ],
+    },
+    news: {
+      say: (c) => [
+        c.g.hasThing('082') ? 'Mit der Schaufel kannst du an glitzernden Stellen graben. Man weiss nie, was da liegt!' : 'Eine Schaufel ist Gold wert – an glitzernden Stellen liegen oft Schätze vergraben.',
+        'Und nachts ohne Laterne durch den Wald? Lieber nicht.',
+      ],
+      goto: 'a',
+    },
+  },
+};
+
+const hilde: DialogDef = {
+  id: 'hilde',
+  start: (c) => {
+    const s = c.g.quests.stage('q-wolle');
+    if (s === 0) return 'ask';
+    if (s === 1) return has(c, '093', 3) ? 'give' : 'wait';
+    return 'done';
+  },
+  nodes: {
+    ask: {
+      say: [
+        'Ach, Kindchen, gut, dass du kommst. Mir ist die Wolle ausgegangen, mitten in einer Decke!',
+        'Die flauschigen Wollknäuel auf den Wiesen werden manchmal zu Karten, wenn man sie fängt. Bringst du mir drei davon?',
+      ],
+      choices: [
+        { text: 'Klar, mach ich!', do: (c) => c.g.quests.set('q-wolle', 1), goto: 'thanks' },
+        { text: 'Vielleicht später.' },
+      ],
+    },
+    thanks: { say: ['Du bist ein Schatz. Drei Wollknäuel-Karten – Nummer 093. Ich warte hier.'] },
+    wait: { say: (c) => [`Drei Wollknäuel-Karten, Kindchen. Du hast ${c.g.countCard('093')}. Die Wollknäuel rollen rund ums Dorf herum.`] },
+    give: {
+      say: ['Oh! Du hast drei Wollknäuel dabei!'],
+      choices: [
+        {
+          text: 'Hier, bitte.',
+          do: (c) => {
+            c.g.takeCards('093', 3);
+            c.w.giveCard('090');
+            c.g.quests.set('q-wolle', 2);
+          },
+          goto: 'gift',
+        },
+        { text: 'Die behalte ich lieber noch.' },
+      ],
+    },
+    gift: { say: ['Klick-klack, fertig! Hier ist eine Warme Wolldecke. Oben in Hohenkamm wirst du sie brauchen – dort friert sogar der Wind.'] },
+    done: { say: ['Halt dich warm, Kindchen. Und iss genug!'] },
+  },
+};
+
+const korbinian: DialogDef = {
+  id: 'korbinian',
+  start: (c) => {
+    const s = c.g.quests.stage('q-glocke');
+    if (s === 0) return 'ask';
+    if (s === 1) return c.g.flags.has('glocke-gefunden') ? 'found' : 'wait';
+    if (s === 2) return 'found';
+    return 'done';
+  },
+  nodes: {
+    ask: {
+      say: [
+        'Grüss dich! Sag mal, hast du eine Glocke gesehen? Meine gute Weidenglocke ist mir im hohen Gras östlich vom Dorf heruntergefallen.',
+        'Mit ihr rufe ich meine Tiere heim. Man sagt, wer seine Aura schärft – Aura-Sinn –, sieht verlorene Dinge glitzern.',
+      ],
+      choices: [
+        { text: 'Ich halte die Augen offen.', do: (c) => c.g.quests.set('q-glocke', 1) },
+        { text: 'Leider nein.' },
+      ],
+    },
+    wait: { say: ['Östlich vom Dorf, im Gras. Mit Aura-Sinn sollte sie glitzern. Ich wäre dir so dankbar!'] },
+    found: {
+      say: ['Das ist sie! Meine Glocke! Weisst du was – behalte sie. Als Karte. Sie soll dir Glück bringen.'],
+      do: (c) => {
+        c.w.giveCard('081');
+        c.g.quests.set('q-glocke', 3);
+      },
+    },
+    done: { say: ['Seit du mir geholfen hast, finden meine Tiere immer heim. Danke!'] },
+  },
+};
+
+const pia: DialogDef = {
+  id: 'pia',
+  start: () => 'a',
+  nodes: {
+    a: {
+      say: (c) =>
+        c.g.flags.has('geheim:klee')
+          ? ['Du hast den Klee gefunden? Wahnsinn! Ich such mir jetzt einen fünfblättrigen.']
+          : [
+              'Psst! Weisst du was? Irgendwo in Taufeld wächst ein vierblättriger Klee. Aber man sieht ihn nur mit Aura-Sinn!',
+              'Ich glaube, er ist südlich vom Dorf, wo die Blumen am dichtesten stehen.',
+            ],
+    },
+  },
+};
+
+const bodo: DialogDef = {
+  id: 'bodo',
+  start: () => 'a',
+  nodes: {
+    a: {
+      say: ['Willkommen im Gasthof „Zum Ersten Tor"! Ein Bett kostet 20 Münzen – danach bist du wie neu.'],
+      choices: [
+        {
+          text: 'Übernachten (20 Münzen)',
+          if: (c) => c.g.inv.money >= 20,
+          do: (c) => {
+            c.g.inv.money -= 20;
+            c.w.heal();
+            c.g.clock = 7 * 60;
+            c.g.day++;
+            c.w.setRest();
+            c.w.save();
+            return 'slept';
+          },
+        },
+        { text: 'Etwas essen', do: (c) => c.w.after(() => c.w.openShop('taufeld:gasthof')) },
+        { text: 'Tschüss!' },
+      ],
+    },
+    slept: { say: ['Gut geschlafen? Ein neuer Tag auf der Insel! Ich habe deinen Fortschritt im Gästebuch notiert.'] },
+  },
+};
+
+const gasthof: DialogDef = { ...bodo, id: 'gasthof' };
+
+registerDialogs([lumi, wilma, hilde, korbinian, pia, bodo, gasthof]);
