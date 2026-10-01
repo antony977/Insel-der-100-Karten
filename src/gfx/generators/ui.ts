@@ -350,3 +350,30 @@ export function abilityIcons(): Raster {
   ABILITY_ICON_ORDER.forEach((k, i) => stencil(out, i * 16, 0, ICON16[k], { k: PAL.ink, w: PAL.white }));
   return out;
 }
+
+
+/** Uhrzeit-/Wetter-Symbole 9×9: Sonne, Mond, Vollmond, Regen, Sturm, Schnee, Nebel, Sand */
+export const TIME_ICON_ORDER = ['sonne', 'mond', 'vollmond', 'regen', 'sturm', 'schnee', 'nebel', 'sand'] as const;
+export function timeIcons(): Raster {
+  const icons: string[][] = [
+    ['....y....', '.y..y..y.', '..yyyyy..', '..yYYYy..', 'yyyYYYyyy', '..yYYYy..', '..yyyyy..', '.y..y..y.', '....y....'],
+    ['...ccc...', '..cc.....', '.cc......', '.cc......', '.cc......', '.cc......', '.ccc...c.', '..ccccc..', '....c....'],
+    ['..ccccc..', '.cCCCCCc.', 'cCCcCCCCc', 'cCCCCCcCc', 'cCCCCCCCc', 'cCcCCCCCc', 'cCCCCcCCc', '.cCCCCCc.', '..ccccc..'],
+    ['..sssss..', '.sSSSSSs.', 'sSSSSSSSs', '.sssssss.', '.b..b..b.', 'b..b..b..', '.b..b..b.', 'b..b..b..', '.........'],
+    ['..sssss..', '.sSSSSSs.', 'sSSSSSSSs', '.sssyyss.', '....yy...', '...yy....', '....yy...', '...y.....', '.........'],
+    ['....w....', '.w..w..w.', '..w.w.w..', '...www...', 'wwwwwwwww', '...www...', '..w.w.w..', '.w..w..w.', '....w....'],
+    ['.........', '.sssss...', '.........', '...ssssss', '.........', 'sssss....', '.........', '..sssssss', '.........'],
+    ['.........', 'ttt..t...', '...tt..tt', '.t....t..', 'tt.ttt..t', '...t...t.', 't.t..tt..', '.t..t...t', '.........'],
+  ];
+  const col: Record<string, number> = { y: PAL.gold, Y: PAL.cream, c: PAL.ice, C: PAL.white, s: PAL.silver, S: PAL.white, b: PAL.sky, w: PAL.white, t: PAL.sand };
+  const out = new Raster(9 * icons.length, 9);
+  icons.forEach((rows, i) => {
+    rows.forEach((row, y) => {
+      for (let x = 0; x < 9; x++) {
+        const c = col[row[x]];
+        if (c !== undefined) out.set(i * 9 + x, y, c);
+      }
+    });
+  });
+  return out;
+}

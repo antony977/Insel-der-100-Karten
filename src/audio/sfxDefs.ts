@@ -152,4 +152,14 @@ export const SFX: Record<string, Tone[]> = {
     { wave: 'square', freq: n(72), dur: 0.5, vol: 0.13, duty: 0.25, at: 0.42, vibrato: { rate: 6, depth: 0.012, delay: 0.15 } },
     { wave: 'triangle', freq: n(48), dur: 0.9, vol: 0.2 },
   ],
+  // ----------------------------------------------------------- Wetter (Schleifen ohne Hüllkurve)
+  rainLoop: [
+    { wave: 'noise', freq: 9000, dur: 2, vol: 0.07, attack: 0, decay: 0, sustain: 1, release: 0, lowpass: 0.35 },
+    { wave: 'noise', freq: 3000, dur: 2, vol: 0.04, attack: 0, decay: 0, sustain: 1, release: 0, lowpass: 0.12 },
+  ],
+  windLoop: [{ wave: 'noise', freq: 900, dur: 2, vol: 0.12, attack: 0, decay: 0, sustain: 1, release: 0, lowpass: 0.05 }],
+  thunder: [
+    { wave: 'noise', freq: 700, freqEnd: 120, dur: 1.6, vol: 0.5, attack: 0.01, decay: 0.5, sustain: 0.35, release: 0.6, lowpass: 0.08 },
+    { wave: 'noise', freq: 2400, freqEnd: 300, dur: 0.25, vol: 0.18, attack: 0.002, lowpass: 0.3 },
+  ],
 };

@@ -374,3 +374,93 @@ export function coin(): Raster {
   }
   return strip(frames);
 }
+
+// ------------------------------------------------------------------ Atmosphäre
+
+/** Weiches Licht 64×64 (weiss, wird eingefärbt) – in Stufen mit Dither-Kanten für Pixel-Optik */
+export function lightSoft(): Raster {
+  const r = new Raster(64, 64);
+  const bayer = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  for (let y = 0; y < 64; y++) {
+    for (let x = 0; x < 64; x++) {
+      const d = Math.hypot(x - 31.5, y - 31.5) / 32;
+      if (d >= 1) continue;
+      const v = Math.pow(1 - d, 1.4);
+      // 5 Helligkeitsstufen, Übergänge per geordnetem Dithering
+      const steps = 5;
+      const s = v * steps;
+      const base = Math.floor(s);
+      const frac = s - base;
+      const level = frac * 16 > bayer[(y & 3) * 4 + (x & 3)] ? base + 1 : base;
+      const a = Math.min(255, Math.round((level / steps) * 255));
+      if (a > 0) r.set(x, y, 0xffffff, a);
+    }
+  }
+  return r;
+}
+
+/** Regentropfen 3×7 */
+export function rainDrop(): Raster {
+  const r = new Raster(3, 7);
+  for (let i = 0; i < 6; i++) r.set(2 - Math.floor(i / 3), i, PAL.ice, 120 + i * 20);
+  return r;
+}
+
+/** Schneeflocken 5×5, 3 Frames */
+export function snowFlake(): Raster {
+  const frames: Raster[] = [];
+  for (let f = 0; f < 3; f++) {
+    const r = new Raster(5, 5);
+    if (f === 0) r.set(2, 2, PAL.white);
+    else if (f === 1) {
+      r.set(2, 2, PAL.white);
+      r.set(1, 2, PAL.white, 160);
+      r.set(3, 2, PAL.white, 160);
+      r.set(2, 1, PAL.white, 160);
+      r.set(2, 3, PAL.white, 160);
+    } else {
+      r.set(1, 1, PAL.white, 200);
+      r.set(2, 2, PAL.white);
+      r.set(3, 3, PAL.white, 200);
+      r.set(3, 1, PAL.white, 200);
+      r.set(1, 3, PAL.white, 200);
+    }
+    frames.push(r);
+  }
+  return strip(frames);
+}
+
+/** Nebelschwade 96×40 (weiss, halbtransparent, gedithert) */
+export function fogCloud(): Raster {
+  const r = new Raster(96, 40);
+  const bayer = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  const blobs = [
+    [30, 22, 26, 14],
+    [56, 18, 30, 15],
+    [72, 24, 20, 11],
+    [44, 26, 34, 12],
+  ];
+  for (let y = 0; y < 40; y++) {
+    for (let x = 0; x < 96; x++) {
+      let v = 0;
+      for (const [bx, by, rx, ry] of blobs) {
+        const d = ((x - bx) / rx) ** 2 + ((y - by) / ry) ** 2;
+        v = Math.max(v, 1 - d);
+      }
+      if (v <= 0) continue;
+      const lv = Math.min(1, v * 1.3);
+      if (lv * 16 > bayer[(y & 3) * 4 + (x & 3)]) r.set(x, y, PAL.white, Math.round(60 + lv * 110));
+    }
+  }
+  return r;
+}
+
+/** Sandkorn-Schleier 4×2 */
+export function sandGrain(): Raster {
+  const r = new Raster(4, 2);
+  r.set(0, 0, PAL.sandLight, 200);
+  r.set(1, 0, PAL.sand, 180);
+  r.set(2, 1, PAL.sandShade, 160);
+  r.set(3, 1, PAL.sand, 120);
+  return r;
+}

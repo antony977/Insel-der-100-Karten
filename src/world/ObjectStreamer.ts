@@ -95,6 +95,11 @@ export class ObjectStreamer {
     this.pool.push(s);
   }
 
+  /** alle sichtbaren Objekte durchlaufen */
+  forEachActive(fn: (i: number, s: Phaser.GameObjects.Sprite) => void): void {
+    for (const [i, s] of this.active) fn(i, s);
+  }
+
   /** aktives Sprite eines Objekts (falls sichtbar) */
   spriteOf(i: number): Phaser.GameObjects.Sprite | undefined {
     return this.active.get(i);

@@ -60,6 +60,10 @@ export class HudScene extends BaseScene {
   private minimap!: Phaser.GameObjects.Image;
   private minimapFrame!: Phaser.GameObjects.NineSlice;
   private minimapDot!: Phaser.GameObjects.Rectangle;
+  private clockText!: Phaser.GameObjects.BitmapText;
+  private clockIcon!: Phaser.GameObjects.Image;
+  private clockT = 0;
+  private timerText!: Phaser.GameObjects.BitmapText;
   private msgBox!: Phaser.GameObjects.Container;
   private msgText!: Phaser.GameObjects.BitmapText;
   private msgName!: Phaser.GameObjects.BitmapText;
@@ -140,12 +144,16 @@ export class HudScene extends BaseScene {
     addPanel(this, GAME_W / 2 - 34, 4, 68, 18);
     this.add.image(GAME_W / 2 - 26, 8, 'ui-icons', 3).setOrigin(0, 0);
     this.progress = addText(this, GAME_W / 2 + 6, 7, '0/100', { font: 'px-s', ox: 0.5, color: PAL.cream });
+    this.timerText = addText(this, GAME_W / 2, 26, '', { font: 'px-o', ox: 0.5, color: PAL.gold, scale: 1 }).setVisible(false);
 
     // --- Minimap (oben rechts) ---
     this.buildMinimapTexture();
     this.minimapFrame = addPanel(this, GAME_W - MINIMAP_W - 12, 4, MINIMAP_W + 8, MINIMAP_H + 8);
     this.minimap = this.add.image(GAME_W - MINIMAP_W - 8, 8, 'minimap').setOrigin(0, 0);
     this.minimapDot = this.add.rectangle(0, 0, 2, 2, PAL.white).setOrigin(0.5, 0.5);
+    // Uhrzeit + Wetter unter der Minimap
+    this.clockText = addText(this, GAME_W - 9, MINIMAP_H + 14, '', { font: 'px-o', ox: 1, color: PAL.cream });
+    this.clockIcon = this.add.image(0, MINIMAP_H + 14, 'hud-time', 0).setOrigin(0, 0);
 
     // --- Schnellzauber (unten rechts, nur ohne Touch) ---
     for (let i = 0; i < 3; i++) {
@@ -360,6 +368,8 @@ export class HudScene extends BaseScene {
       y = Math.max(4, Math.ceil((buttonsBottomCss - rect.top) / scale));
     }
     this.minimapFrame.setY(y);
+    this.clockText?.setY(y + MINIMAP_H + 10);
+    this.clockIcon?.setY(y + MINIMAP_H + 10);
   }
 
   override update(time: number, delta: number): void {
@@ -413,6 +423,30 @@ export class HudScene extends BaseScene {
       this.minimapDot.setVisible(Math.floor(time / 250) % 2 === 0);
     }
 
+    // Quest-Zeitanzeige
+    const tm = this.registry.get('hudTimer') as { label: string; left: number } | null | undefined;
+    if (tm) {
+      const left = Math.max(0, tm.left);
+      const m = Math.floor(left / 60);
+      const sec = Math.floor(left % 60);
+      this.timerText.setVisible(true).setText(`${tm.label}  ${m}:${String(sec).padStart(2, '0')}`);
+      this.timerText.setTint(left < 10 && Math.floor(left * 4) % 2 === 0 ? PAL.coral : PAL.gold);
+    } else this.timerText.setVisible(false);
+
+    // Uhrzeit und Wetter
+    this.clockT -= dt;
+    if (this.clockT <= 0) {
+      this.clockT = 0.5;
+      const c = Math.floor(Game.clock);
+      const txt = `${String(Math.floor(c / 60)).padStart(2, '0')}:${String(c % 60).padStart(2, '0')}`;
+      this.clockText.setText(txt);
+      const w = (this.registry.get('weather') as string | undefined) ?? 'klar';
+      const order = ['sonne', 'mond', 'vollmond', 'regen', 'sturm', 'schnee', 'nebel', 'sand'];
+      const icon = w !== 'klar' ? w : Game.isNight() ? (Game.isFullMoon() ? 'vollmond' : 'mond') : 'sonne';
+      this.clockIcon.setFrame(Math.max(0, order.indexOf(icon)));
+      this.clockIcon.setX(this.clockText.x - this.clockText.width - 11);
+    }
+
     // FPS / Debug
     this.fpsAcc += dt;
     if (this.fpsAcc > 0.25) {
@@ -459,8 +493,21 @@ export class HudScene extends BaseScene {
 
   /** Leuchtspur: Pfeil zur nächsten herumliegenden Karte */
   private updateArrow(time: number): void {
-    const on = Game.inv.buffs.has('leuchtspur');
     const pos = this.registry.get('playerPos') as [number, number] | undefined;
+    const target = this.registry.get('questTarget') as [number, number] | null | undefined;
+    if (target && pos) {
+      const d = Math.hypot(target[0] - pos[0], target[1] - pos[1]);
+      if (d < 40) {
+        this.arrow.setVisible(false);
+        return;
+      }
+      const a = Math.atan2(target[1] - pos[1], target[0] - pos[0]);
+      const r = 44 + Math.sin(time / 150) * 3;
+      this.arrow.setFillStyle(PAL.cyan).setVisible(true).setPosition(GAME_W / 2 + Math.cos(a) * r, GAME_H / 2 - 12 + Math.sin(a) * r).setRotation(a + Math.PI / 2);
+      return;
+    }
+    this.arrow.setFillStyle(PAL.gold);
+    const on = Game.inv.buffs.has('leuchtspur');
     if (!on || !pos) {
       this.arrow.setVisible(false);
       return;

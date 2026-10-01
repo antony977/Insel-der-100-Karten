@@ -29,9 +29,21 @@ const rastfeuer: DialogDef = {
             return 'slept';
           },
         },
+        {
+          text: 'Bis zum Einbruch der Nacht warten',
+          if: (c) => !c.g.isNight(),
+          do: (c) => {
+            c.w.heal();
+            c.g.clock = 21 * 60;
+            c.w.setRest();
+            c.w.save();
+            return 'night';
+          },
+        },
         { text: 'Weitergehen' },
       ],
     },
+    night: { say: [{ who: 'Rastfeuer', text: 'Die Sonne versinkt hinter den Hügeln. Nachts zeigen sich andere Wesen – und manche Geheimnisse nur im Mondlicht.' }] },
     rested: { say: [{ who: 'Rastfeuer', text: 'Du fühlst dich erholt. Dein Fortschritt ist gespeichert – und hier wachst du auf, falls dir etwas zustösst.' }] },
     slept: { say: [{ who: 'Rastfeuer', text: 'Die Sterne verblassen, die Vögel singen. Ein neuer Tag auf der Insel beginnt!' }] },
   },

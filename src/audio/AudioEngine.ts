@@ -56,6 +56,8 @@ class AudioEngine {
   private overrides: { sfx: Record<string, string>; music: Record<string, string> } = { sfx: {}, music: {} };
   private ducked = new Set<string>();
   private unlocked = false;
+  private amb: { name: string; src: AudioBufferSourceNode; gain: GainNode } | null = null;
+  private ambWanted: string | null = null;
 
   /** Einmal beim Start aufrufen: wartet auf die erste Nutzer-Geste (Browser-Vorgabe). */
   init(): void {
@@ -116,6 +118,7 @@ class AudioEngine {
       this.renderSfx();
       void this.loadOverrides();
       if (this.wanted) this.startWanted();
+      if (this.ambWanted) this.ambient(this.ambWanted);
     }
     if (this.ctx.state !== 'running') {
       void this.ctx.resume().then(() => {
@@ -344,6 +347,36 @@ class AudioEngine {
       tr.src.disconnect();
       tr.gain.disconnect();
     };
+  }
+
+  /** Hintergrundgeräusch als Schleife (Regen, Wind); null = aus */
+  ambient(name: string | null, vol = 1): void {
+    this.ambWanted = name;
+    const c = this.ctx;
+    if (!c) return;
+    const t = c.currentTime;
+    if (this.amb && this.amb.name === name) {
+      this.amb.gain.gain.setTargetAtTime(vol, t, 0.5);
+      return;
+    }
+    if (this.amb) {
+      const old = this.amb;
+      this.amb = null;
+      old.gain.gain.setTargetAtTime(0, t, 0.4);
+      old.src.stop(t + 2);
+    }
+    if (!name) return;
+    const buf = this.sfx.get(name);
+    if (!buf) return;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.setTargetAtTime(vol, t, 0.6);
+    src.connect(gain).connect(this.sfxBus);
+    src.start(t);
+    this.amb = { name, src, gain };
   }
 
   /** Musik leiser stellen (Dialoge, Buch); `key` = Verursacher, damit nichts hängen bleibt. */

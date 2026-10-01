@@ -36,6 +36,9 @@ import type { WorldApi } from '../systems/Dialog';
 import type { Enemy } from '../entities/Enemy';
 import { castSpell, type SpellHost } from '../systems/Spells';
 import '../data/dialogs';
+import { Atmosphere, ambientFor, type Light } from '../world/Atmosphere';
+import { baseWeather, regionWeather, type BaseWeather } from '../systems/Weather';
+import { modulesFor, setWorldHost, type WorldHost, type WorldModule } from '../systems/WorldModules';
 
 /** Spiegelbild (Spiegel-Affinität): zieht Angriffe auf sich und explodiert */
 class MirrorDecoy implements Decoy {
@@ -130,6 +133,12 @@ export class WorldScene extends BaseScene {
   private hiddenSpots: number[] = [];
   private api!: WorldApi;
   private warping = false;
+  private atmo!: Atmosphere;
+  private mods: WorldModule[] = [];
+  host!: WorldHost;
+  private hudTimer: { label: string; left: number } | null = null;
+  private questTarget: [number, number] | null = null;
+  private lightList: Light[] = [];
 
   constructor() {
     super('World');
@@ -212,28 +221,18 @@ export class WorldScene extends BaseScene {
     this.auraHeld = false;
 
     // --- Figuren
-    for (const n of NPCS) {
-      if (n.map !== this.loaded.id) continue;
-      if (n.showIf && !Game.flags.has(n.showIf)) continue;
-      if (n.hideIf && Game.flags.has(n.hideIf)) continue;
-      const town = n.town ? TOWNS.find((t) => t.id === n.town) : undefined;
-      const tx = (town ? town.x : 0) + n.x;
-      const ty = (town ? town.y : 0) + n.y;
-      this.npcs.push(
-        new Npc(this, this.map, {
-          id: n.id,
-          key: `npc-${n.id}`,
-          name: n.name,
-          x: tx * TILE + 8,
-          y: ty * TILE + 12,
-          facing: n.facing ?? 'down',
-          wander: n.wander ?? 0,
-          dialog: n.dialog,
-        }),
-      );
-    }
+    this.syncNpcs();
 
     this.api = this.makeApi();
+    this.atmo = new Atmosphere(this);
+    this.hudTimer = null;
+    this.questTarget = null;
+    this.registry.set('hudTimer', null);
+    this.registry.set('questTarget', null);
+    this.host = this.makeHost();
+    setWorldHost(this.host);
+    this.mods = modulesFor(this.loaded.id);
+    for (const m of this.mods) m.load?.(this.host);
     this.crosshair = this.add.image(0, 0, 'ui-crosshair').setDepth(200000).setVisible(false);
     this.camX = this.player.x;
     this.camY = this.player.y - 12;
@@ -270,9 +269,16 @@ export class WorldScene extends BaseScene {
     this.registry.set('worldMeta', this.loaded.meta ?? null);
     this.registry.set('worldActive', true);
     this.scene.launch('Hud');
-    this.events.on(Phaser.Scenes.Events.RESUME, () => Input.setContext('gameplay'));
+    this.events.on(Phaser.Scenes.Events.RESUME, () => {
+      Input.setContext('gameplay');
+      this.syncNpcs();
+    });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       offs.forEach((o) => o());
+      setWorldHost(null);
+      this.atmo.destroy();
+      this.registry.set('hudTimer', null);
+      this.registry.set('questTarget', null);
       this.tiles.destroy();
       this.objects.destroy();
       this.ground.destroy();
@@ -350,6 +356,108 @@ export class WorldScene extends BaseScene {
       after: (fn) => this.time.delayedCall(30, fn),
       openScene: (key, data) => this.openOverlay(key, data),
       wish: () => this.wishingWell(),
+    };
+  }
+
+  /** Figuren nach Spielstand ein- und ausblenden */
+  syncNpcs(): void {
+    const want = new Set<string>();
+    for (const n of NPCS) {
+      if (n.map !== this.loaded.id) continue;
+      if (n.showIf && !Game.flags.has(n.showIf)) continue;
+      if (n.hideIf && Game.flags.has(n.hideIf)) continue;
+      want.add(n.id);
+    }
+    for (let i = this.npcs.length - 1; i >= 0; i--) {
+      if (!want.has(this.npcs[i].def.id)) {
+        this.npcs[i].destroy();
+        this.npcs.splice(i, 1);
+      }
+    }
+    for (const n of NPCS) {
+      if (!want.has(n.id) || this.npcs.some((x) => x.def.id === n.id)) continue;
+      const town = n.town ? TOWNS.find((t) => t.id === n.town) : undefined;
+      const tx = (town ? town.x : 0) + n.x;
+      const ty = (town ? town.y : 0) + n.y;
+      this.npcs.push(
+        new Npc(this, this.map, {
+          id: n.id,
+          key: `npc-${n.id}`,
+          name: n.name,
+          x: tx * TILE + 8,
+          y: ty * TILE + 12,
+          facing: n.facing ?? 'down',
+          wander: n.wander ?? 0,
+          dialog: n.dialog,
+        }),
+      );
+    }
+  }
+
+  private makeHost(): WorldHost {
+    const self = this;
+    return {
+      scene: this,
+      get mapId() {
+        return self.loaded.id;
+      },
+      get map() {
+        return self.map;
+      },
+      get player() {
+        return self.player;
+      },
+      get region() {
+        return self.region;
+      },
+      get enemies() {
+        return self.enemies;
+      },
+      get fx() {
+        return self.fx;
+      },
+      toast: (t) => this.toast(t),
+      message: (name, text) => this.message({ name, text }),
+      talk: (d, npc) => this.openTalk(d, npc),
+      openScene: (key, data) => this.openOverlay(key, data),
+      giveCard: (id) => Game.giveCard(id) !== null,
+      spawnMonster: (id, x, y, tag) => {
+        const def = MONSTER_BY_ID[id];
+        if (!def) return null;
+        const e = this.enemies.spawn(def, x, y);
+        if (e && tag) e.tag = tag;
+        return e;
+      },
+      hideObject: (idx, flag) => this.removeWorldObject(idx, flag),
+      showObject: (idx) => {
+        this.map.restoreObject(idx);
+        this.objects.refresh(idx);
+      },
+      refreshObject: (idx) => this.objects.refresh(idx),
+      sparkle: (x, y, color, n = 10) => {
+        for (let i = 0; i < n; i++) {
+          const a = (i / n) * Math.PI * 2;
+          this.fx.spawn('sparkle', x, y, { tint: color, vx: Math.cos(a) * 50, vy: Math.sin(a) * 40 - 20, depth: y + 2 });
+        }
+      },
+      shake: (i, ms) => this.shake(i, ms),
+      flash: (c, ms) => this.flash(c, ms),
+      changeMap: (t, x, y) => this.changeMap(t, x, y),
+      teleport: (x, y, text) => this.teleportTo(x, y, text),
+      setMusic: (id) => {
+        this.musicOverride = id;
+        this.updateMusic();
+      },
+      setTimer: (label, seconds = 0) => {
+        this.hudTimer = label ? { label, left: seconds } : null;
+        this.registry.set('hudTimer', this.hudTimer);
+      },
+      setTarget: (x, y = 0) => {
+        this.questTarget = x === null ? null : [x, y];
+        this.registry.set('questTarget', this.questTarget);
+      },
+      after: (ms, fn) => this.time.delayedCall(ms, fn),
+      syncNpcs: () => this.syncNpcs(),
     };
   }
 
@@ -436,6 +544,7 @@ export class WorldScene extends BaseScene {
       Game.giveCard('038');
       this.toast('Der Kobold lässt das Tintenfass der Wahrheit fallen!');
     }
+    for (const m of this.mods) m.kill?.(this.host, e.def, e);
     this.game.events.emit('monster-killed', e.def.id, e.tag);
   }
 
@@ -510,6 +619,7 @@ export class WorldScene extends BaseScene {
     const o = this.map.findInteractable(px, py, 22);
     if (!o) return false;
     const idx = this.map.objects.indexOf(o);
+    for (const m of this.mods) if (m.interact?.(this.host, o, idx)) return true;
     switch (o.def.interact) {
       case 'sign':
         this.message({ name: 'Schild', text: o.text ?? '…' });
@@ -625,6 +735,13 @@ export class WorldScene extends BaseScene {
     if (!hasMap(target)) {
       this.message({ name: 'Versperrt', text: 'Ein kalter Luftzug weht dir entgegen. Dieser Weg öffnet sich später.' });
       return;
+    }
+    for (const m of this.mods) {
+      const msg = m.warpCheck?.(this.host, target);
+      if (msg) {
+        this.message({ name: 'Versperrt', text: msg });
+        return;
+      }
     }
     const gateCheck = this.warpChecks[target];
     if (gateCheck) {
@@ -785,6 +902,8 @@ export class WorldScene extends BaseScene {
 
   flash(color: number, ms: number): void {
     if (!Settings.get().screenShake) return;
+    const r = Display.renderScale;
+    this.flashRect.setPosition((GAME_W * (r - 1)) / 2, (GAME_H * (r - 1)) / 2);
     this.flashRect.setFillStyle(color, 0.28);
     this.tweens.killTweensOf(this.flashRect);
     this.tweens.add({ targets: this.flashRect, fillAlpha: 0, duration: ms });
@@ -869,6 +988,7 @@ export class WorldScene extends BaseScene {
   private onPlayerDied(): void {
     if (this.dying) return;
     this.dying = true;
+    for (const m of this.mods) m.died?.(this.host);
     this.wheelOpen = false;
     this.registry.set('auraWheel', null);
     this.time.delayedCall(1300, () => {
@@ -971,6 +1091,44 @@ export class WorldScene extends BaseScene {
     }
   }
 
+  /** Wetter der aktuellen Region */
+  weatherNow(): string {
+    const ov = Game.vars.get('wetter-bis');
+    const kinds: BaseWeather[] = ['klar', 'regen', 'sturm'];
+    const override = ov ? { kind: kinds[Game.vars.get('wetter-art') ?? 0] ?? 'klar', until: ov } : undefined;
+    const base = baseWeather(Game.day, Game.clock, override);
+    if (!this.loaded.meta) return 'klar';
+    return regionWeather(this.region || 'taufeld', base, Game.inv.tools.has('ewige-laterne'));
+  }
+
+  /** Tag/Nacht, Lichter und Wetter */
+  private updateAtmosphere(dt: number, view: Phaser.Geom.Rectangle): void {
+    const w = this.weatherNow() as ReturnType<typeof regionWeather>;
+    this.atmo.setWeather(w);
+    this.atmo.heavyFog = this.region === 'nebelhain' && !Game.inv.tools.has('ewige-laterne');
+    this.registry.set('weather', w);
+    const ambient = ambientFor(Game.clock, Game.isFullMoon(), !!this.loaded.dark);
+    const L = this.lightList;
+    L.length = 0;
+    if (ambient !== 0xffffff || w !== 'klar') {
+      this.objects.forEachActive((i) => {
+        const o = this.map.objects[i];
+        const l = o.def.light;
+        if (l) L.push({ x: o.x, y: o.y + l.y, radius: l.radius, color: l.color });
+      });
+      const p = this.player;
+      if (p.lightOn) L.push({ x: p.x, y: p.y - 10, radius: Game.inv.tools.has('ewige-laterne') ? 96 : 72, color: 0xffe2a0 });
+      else L.push({ x: p.x, y: p.y - 10, radius: 30, color: 0x8a96c8, alpha: 0.6 });
+      if (p.sense) L.push({ x: p.x, y: p.y - 10, radius: 40, color: p.auraColor, alpha: 0.5 });
+      for (const e of this.enemies.list) {
+        if (!e.active || e.state === 'dead') continue;
+        const id = e.def.id;
+        if (id === 'irrlicht' || id === 'quallenlicht') L.push({ x: e.x, y: e.y - 10 - e.z, radius: 34, color: id === 'irrlicht' ? 0x9fe8ff : 0xff9ff0, alpha: 0.8 });
+      }
+    }
+    this.atmo.update(dt, view, ambient, L);
+  }
+
   /** Passende Musik wählen: Vorrang > Lagerfeuer > Region bzw. Karte */
   private updateMusic(): void {
     const px = this.player.x;
@@ -1023,6 +1181,11 @@ export class WorldScene extends BaseScene {
       }
       this.player.update(simDt, Input);
       Game.tick(simDt);
+      for (const m of this.mods) m.update?.(this.host, simDt);
+      if (this.hudTimer) {
+        this.hudTimer.left -= simDt;
+        this.registry.set('hudTimer', this.hudTimer);
+      }
       this.autosaveT += dt;
       if (this.autosaveT > AUTOSAVE_SECONDS) {
         this.autosaveT = 0;
@@ -1048,6 +1211,7 @@ export class WorldScene extends BaseScene {
     this.numbers.update(dt);
     this.fx.update(dt);
     this.updateRegion(dt);
+    this.updateAtmosphere(dt, view);
     this.game.events.emit('world-update', dt, time);
     // versteckte Stellen nur mit Aura-Sinn sichtbar
     for (const i of this.hiddenSpots) {
