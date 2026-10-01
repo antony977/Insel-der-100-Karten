@@ -234,7 +234,7 @@ export class WorldScene extends BaseScene {
     this.message({
       name: 'Lumi',
       portrait: 'npc-lumi',
-      text: 'Ruf jetzt dein Buch mit „Buch!" (Taste B oder Buch-Knopf) und lege die Karten hinein – in 60 Sekunden verwandeln sie sich sonst!',
+      text: 'Schnipp jetzt dein Kartenbuch auf (Taste B oder Buch-Knopf) und lege die Karten hinein – in 60 Sekunden verwandeln sie sich sonst!',
     });
     return true;
   }

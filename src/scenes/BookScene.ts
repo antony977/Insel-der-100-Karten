@@ -181,7 +181,7 @@ export class BookScene extends BaseScene {
   private playOpen(): void {
     this.root.setVisible(false);
     const closed = this.add.image(GAME_W / 2, GAME_H / 2, 'book-closed').setScale(0.3).setDepth(40);
-    const shout = addText(this, GAME_W / 2, GAME_H / 2 - 52, 'Buch!', { font: 'px-o', ox: 0.5, oy: 0.5, color: PAL.gold, scale: 2 })
+    const shout = addText(this, GAME_W / 2, GAME_H / 2 - 52, 'Aufgeschlagen!', { font: 'px-o', ox: 0.5, oy: 0.5, color: PAL.gold, scale: 2 })
       .setDepth(41)
       .setAlpha(0);
     this.tweens.add({ targets: shout, alpha: 1, y: shout.y - 6, duration: 160 });

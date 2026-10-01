@@ -7,8 +7,8 @@
 ## 1. Kernidee
 
 Eine geheimnisvolle Spielkonsole – die **Lumenbox** – zieht die Spielerin bzw. den Spieler in
-eine Pixelwelt: die **Insel der 100 Karten**. Hier ist alles eine Karte. Mit dem Ruf
-**„Buch!"** erscheint das persönliche Kartenbuch. Wer alle 100 Sammelkarten (Nr. 000–099)
+eine Pixelwelt: die **Insel der 100 Karten**. Hier ist alles eine Karte. Mit einem Fingerschnippen
+klappt das persönliche Kartenbuch auf („Aufgeschlagen!"). Wer alle 100 Sammelkarten (Nr. 000–099)
 in den Sammelseiten vereint, ruft den **Spielleiter Nullpunkt** herbei, darf drei Karten in
 die echte Welt mitnehmen – und danach mit New Game+ weiterspielen.
 
