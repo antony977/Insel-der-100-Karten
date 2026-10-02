@@ -254,4 +254,4 @@ export function talentCard(affinity: AffinityId, branch: number, tier: number): 
 }
 
 /** Werte, die automatisch mit jeder Stufe steigen */
-export const LEVEL_GROWTH: Partial<Stats> = { lp: 6, aura: 4 };
+export const LEVEL_GROWTH: Partial<Stats> = { lp: 6, aura: 4, str: 0.3, def: 0.15 };

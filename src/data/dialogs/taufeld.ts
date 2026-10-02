@@ -29,6 +29,43 @@ registerQuests([
 
 const has = (c: DialogCtx, id: string, n = 1) => c.g.countCard(id) >= n;
 
+const TOWN_NAMES: Record<string, string> = {
+  taufeld: 'Taufeld',
+  runenhall: 'Runenhall',
+  moewenhafen: 'Möwenhafen',
+  wuerfelheim: 'Würfelheim',
+  hohenkamm: 'Hohenkamm',
+  sandspiegel: 'Sandspiegel',
+  rosenweil: 'Rosenweil',
+};
+
+const BOSS_HINTS: [string, string][] = [
+  ['boss:moosbart', 'Im Südosten des Taufelds schläft Moosbart, der Grasriese, im Wiesenkessel. Ab etwa Stufe 8 hast du gute Chancen.'],
+  ['boss:tintenkoloss', 'Als Mitglied des Ordens darfst du in Runenhall den Gildenturm hinaufsteigen – dort wartet der Tintenkoloss.'],
+  ['boss:hausbankier', 'Mit einer Silbernen Spielmarke öffnet Fortuna dir in Würfelheim den Tresorraum des Hausbankiers.'],
+  ['boss:tiefenmaul', 'Hafenmeisterin Marlene in Möwenhafen sucht jemanden, der die Hafenkrake vertreibt.'],
+  ['boss:dornenbaron', 'Westlich von Rosenweil führt eine Rankenpforte in einen verwilderten Rosengarten. Dort haust der Dornenbaron.'],
+  ['boss:kragor', 'Mit Moosbarts Herzsamen wächst auf dem Bergpfad nördlich von Hohenkamm eine Rankenbrücke zum Gipfel – zu Sturmgreif Kragor.'],
+  ['boss:nebelmutter', 'Ein Irrlicht im Glas führt dich durch die Nebelwand im Westen des Nebelhains. Hinter der Wurzelpforte wohnt die Nebelmutter.'],
+  ['boss:leser', 'Mit der Ewigen Laterne kannst du die Treppe in den Ruinen hinabsteigen: das Labyrinth der Leeren Seiten.'],
+];
+
+/** Lumis Rat: das nächste sinnvolle Ziel */
+function nextGoal(c: DialogCtx): string {
+  const g = c.g;
+  if (!g.quests.done('q-start')) return g.quests.text('q-start');
+  const n = g.book.collectedCount();
+  if (n < 8) return 'Sammle erst einmal Karten! Besiege Monster rund um Taufeld, hilf Oma Hilde und Bauer Korbinian, und schau dich in Runenhall um. Leg neue Karten immer gleich ins Buch!';
+  if (!g.quests.done('q-gilde')) return 'In Runenhall nimmt der Orden der Siegel neue Mitglieder auf. Sprich mit Seraphine im Turm – das Gildensiegel lohnt sich.';
+  const unseen = Object.keys(TOWN_NAMES).filter((t) => !g.visited.has(t));
+  if (unseen.length) return `Du kennst noch nicht alle Städte. Besuch ${unseen.map((t) => TOWN_NAMES[t]).join(', ')} – überall warten Figuren mit Aufgaben und Karten.`;
+  if (g.quests.active('q-aschenhand')) return `Die Aschenhand ist gefährlich. ${g.quests.text('q-aschenhand')}`;
+  const boss = BOSS_HINTS.find(([f]) => !g.flags.has(f));
+  if (boss && g.prog.level >= 6) return boss[1];
+  if (n < 100) return `Du hast ${n} von 100 Karten. Schau ins Buch: Bei jeder fehlenden Karte steht, wo man sie findet. Und frag die anderen Sammler – sie kennen viele Verstecke.`;
+  return 'Alle 100 Karten! Geh zum Ersten Tor – es wartet jemand auf dich.';
+}
+
 const lumi: DialogDef = {
   id: 'lumi',
   start: (c) => {
@@ -78,6 +115,7 @@ const lumi: DialogDef = {
     tips: {
       say: ['Brauchst du einen Rat, {name}?'],
       choices: [
+        { text: 'Was soll ich als Nächstes tun?', goto: 'ziel' },
         { text: 'Erzähl mir von der Aura.', goto: 'aura' },
         { text: 'Was bedeuten die Limits?', goto: 'limit' },
         { text: 'Was passiert, wenn ich umfalle?', goto: 'death' },
@@ -85,6 +123,7 @@ const lumi: DialogDef = {
         { text: 'Danke, Lumi!' },
       ],
     },
+    ziel: { say: (c) => [nextGoal(c)], goto: 'tips' },
     aura: {
       say: [
         'Aura ist die Kraft, die in dir fliesst. Drück die Aura-Taste für deine gewählte Technik – oder halte sie, dann öffnet sich das Aura-Rad.',

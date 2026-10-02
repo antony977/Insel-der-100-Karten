@@ -137,7 +137,8 @@ const rivale: DialogDef = {
     },
     a: {
       say: (c) => {
-        const r = rivalOf(c)!;
+        const r = rivalOf(c);
+        if (!r) return ['…'];
         const gebannt = r.buffs.has('gebannt');
         return [
           gebannt
@@ -173,7 +174,8 @@ const rivale: DialogDef = {
     wissen: { say: () => ['Tjark beugt sich vor und senkt die Stimme.', missingHint()], goto: 'a' },
     tausch: {
       say: (c) => {
-        const r = rivalOf(c)!;
+        const r = rivalOf(c);
+        if (!r) return ['…'];
         const o = offerOf(r);
         if (o === null) return ['Im Moment habe ich nichts, was dir fehlt. Frag mich später wieder!'];
         const k = card(Game.registry.idOf(o));
@@ -182,7 +184,10 @@ const rivale: DialogDef = {
       choices: [
         {
           text: 'Karte zum Tausch wählen',
-          if: (c) => offerOf(rivalOf(c)!) !== null,
+          if: (c) => {
+            const r = rivalOf(c);
+            return !!r && offerOf(r) !== null;
+          },
           do: (c) => {
             const r = rivalOf(c)!;
             const o = offerOf(r)!;
@@ -194,13 +199,14 @@ const rivale: DialogDef = {
     },
     allianz: {
       say: (c) => {
-        const r = rivalOf(c)!;
+        const r = rivalOf(c);
+        if (!r) return ['…'];
         if (c.g.book.collectedCount() < 10) return [`${r.name} lacht: „Sammel erst ein paar Karten mehr – dann reden wir über eine Allianz!" (ab 10 Karten)`];
         return [`${r.name} schlägt ein: „Abgemacht! Wir halten zusammen. Hier – ein kleines Geschenk zum Anfang."`];
       },
       do: (c) => {
-        const r = rivalOf(c)!;
-        if (c.g.book.collectedCount() < 10) return;
+        const r = rivalOf(c);
+        if (!r || c.g.book.collectedCount() < 10) return;
         r.ally = true;
         r.met = true;
         const gift = ['Z13', 'Z18', 'Z19', 'Z21'].find((z) => c.g.registry.canCreate(z));

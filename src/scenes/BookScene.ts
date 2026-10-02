@@ -641,7 +641,8 @@ export class BookScene extends BaseScene {
       ['Aura', `${Math.round(inv.aura)} / ${st.aura}`],
     ];
     for (const k of ['str', 'spd', 'ctrl', 'def', 'luck', 'regen', 'dodge'] as (keyof Stats)[]) {
-      rows.push([STAT_LABELS[k], k === 'dodge' ? `+${st[k]} %` : String(st[k])]);
+      const v = Math.round(st[k] * 10) / 10;
+      rows.push([STAT_LABELS[k], k === 'dodge' ? `+${v} %` : String(Number.isInteger(v) ? v : v.toFixed(1))]);
     }
     rows.push(['Münzen', String(inv.money)], ['Casino-Chips', String(inv.chips)]);
     rows.push(['Sammelkarten', `${Game.book.collectedCount()} / 100`], ['Spielzeit', formatPlayTime(Game.playTime)]);

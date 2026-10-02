@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import type Phaser from 'phaser';
 import { registerDialogs, type DialogCtx, type DialogDef } from '../../systems/Dialog';
 import { registerQuests } from '../../systems/Quests';
 import { registerModule, type WorldHost } from '../../systems/WorldModules';

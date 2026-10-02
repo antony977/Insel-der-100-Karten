@@ -5,6 +5,7 @@ import { Input } from '../../input/InputManager';
 import { PAL } from '../../gfx/palette';
 import { GAME_H, GAME_W } from '../../config';
 import { Sound } from '../../audio/AudioEngine';
+import { KLIPPENBALL_TEAMS } from '../../data/minigames';
 
 interface Athlete {
   sprite: Phaser.GameObjects.Sprite;
@@ -21,7 +22,6 @@ interface Athlete {
   dir: number;
 }
 
-export const KLIPPENBALL_TEAMS = ['Die Bergziegen', 'Die Lawinen', 'Die Gipfelstürmer'];
 
 const FIELD = { x: 40, y: 50, w: 400, h: 190 };
 const GOAL_H = 56;

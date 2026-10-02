@@ -5,7 +5,7 @@ import { Game } from '../../systems/GameState';
 import { TILE } from '../../config';
 import { TOWNS } from '../world/layout';
 import { has, mini, reward, setStage, stage } from './util';
-import { KLIPPENBALL_TEAMS } from '../../scenes/mini/KlippenballScene';
+import { KLIPPENBALL_TEAMS } from '../minigames';
 import { PAL } from '../../gfx/palette';
 
 registerQuests([
