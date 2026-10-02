@@ -8,13 +8,14 @@ import { Settings } from '../systems/Settings';
 import { Display } from '../systems/Display';
 import { keyLabel } from '../input/Actions';
 import { charFrame } from '../gfx/generators/characters';
-import { wrapText } from '../gfx/font/PixelFont';
+import { measureText, wrapText } from '../gfx/font/PixelFont';
 import type { WorldMap } from '../world/WorldMap';
 import { TERRAIN_BY_ID } from '../world/terrain';
 import { abgr } from '../gfx/palette';
 
 const TERRAINS_MINI: number[] = TERRAIN_BY_ID.map((t) => abgr(t.mini));
 import { Game } from '../systems/GameState';
+import { questDef } from '../systems/Quests';
 import { cardIndex } from '../data/cards';
 import { OUTSIDE_SECONDS } from '../systems/cards/Book';
 import { TECHNIQUES, TECH_BY_ID, AFFINITY_BY_ID, type TechniqueId } from '../data/aura';
@@ -209,12 +210,33 @@ export class HudScene extends BaseScene {
     };
     this.game.events.on('hud-banner', onBanner);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.game.events.off('hud-banner', onBanner));
+    // Während Gesprächen und Menüs ist das HUD pausiert: schon gelesene Meldungen verschwinden,
+    // statt eingefroren über dem Gespräch zu hängen.
+    const onPause = () => {
+      for (let i = this.toasts.length - 1; i >= 0; i--) {
+        const o = this.toasts[i];
+        if (o.t < 0.5) continue;
+        o.panel.destroy();
+        o.text.destroy();
+        this.toasts.splice(i, 1);
+      }
+      this.stackToasts();
+    };
+    this.events.on(Phaser.Scenes.Events.PAUSE, onPause);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.events.off(Phaser.Scenes.Events.PAUSE, onPause));
     const onToast = (t: string) => this.toast(t);
     const onMsg = (m: HudMessage) => this.showMessage(m);
     this.game.events.on(HUD_EVENTS.toast, onToast);
     this.game.events.on(HUD_EVENTS.message, onMsg);
     const offSrc = Input.onSourceChange((s) => this.applySource(s));
+    const offQuest = Game.events.on('quest-changed', (id, from, to) => {
+      const q = questDef(id);
+      if (!q || to <= from) return;
+      if (to >= q.steps.length) this.toast(`Aufgabe erfüllt: ${q.name}`);
+      else if (from === 0) this.toast(`Neue Aufgabe: ${q.name} – Details im Buch unter „Quests".`);
+    });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      offQuest();
       this.game.events.off(HUD_EVENTS.toast, onToast);
       this.game.events.off(HUD_EVENTS.message, onMsg);
       offSrc();
@@ -336,15 +358,24 @@ export class HudScene extends BaseScene {
     const panel = addPanel(this, 0, 0, 316, h, 'ui-frame');
     panel.setPosition(GAME_W / 2 - 158, 28);
     const t = addText(this, GAME_W / 2, 33, lines.join('\n'), { font: 'px-s', ox: 0.5, color: PAL.white, align: 'center' });
-    for (const old of this.toasts) {
-      old.panel.y += h + 2;
-      old.text.y += h + 2;
-    }
     this.toasts.push({ panel, text: t, t: 0 });
-    if (this.toasts.length > 3) {
+    // höchstens zwei Meldungen, sonst verdecken sie die Spielfigur
+    if (this.toasts.length > 2) {
       const o = this.toasts.shift()!;
       o.panel.destroy();
       o.text.destroy();
+    }
+    this.stackToasts();
+  }
+
+  /** Neueste Meldung oben, ältere darunter */
+  private stackToasts(): void {
+    let y = 28;
+    for (let i = this.toasts.length - 1; i >= 0; i--) {
+      const o = this.toasts[i];
+      o.panel.y = y;
+      o.text.y = y + 5;
+      y += o.panel.height + 2;
     }
   }
 
@@ -354,16 +385,28 @@ export class HudScene extends BaseScene {
     const b = Settings.get().bindings;
     const k = (a: keyof typeof b) => keyLabel(b[a][0] ?? '?');
     if (s === 'keyboard' || s === 'mouse') {
-      this.hint.setText(
+      this.setHint(
         `${k('up')}${k('left')}${k('down')}${k('right')} Laufen · ${k('attack')} Angriff · ${k('dodge')} Rolle · ${k('aura')} Aura (halten: Aura-Rad) · ${k('book')} Buch · ${k('pause')} Pause`,
       );
     } else if (s === 'gamepad') {
-      this.hint.setText('Stick Laufen · A Angriff · B Rolle · X Aura (halten: Rad) · Y Buch · Start Pause');
+      this.setHint('Stick Laufen · A Angriff · B Rolle · X Aura (halten: Rad) · Y Buch · Start Pause');
     } else {
-      this.hint.setText('');
+      this.setHint('');
     }
     this.layoutForTouch(touch);
     this.hintT = 0;
+  }
+
+  /** Steuerungshinweis unten links – umbrechen, damit er nicht unter die Schnellslots läuft */
+  private setHint(t: string): void {
+    const lines: string[] = [];
+    for (const part of t.split(' · ')) {
+      const last = lines.length - 1;
+      if (last >= 0 && measureText(`${lines[last]} · ${part}`) <= GAME_W - 96) lines[last] += ` · ${part}`;
+      else lines.push(part);
+    }
+    if (!lines.length) lines.push('');
+    this.hint.setText(lines.join('\n')).setY(GAME_H - 14 - (lines.length - 1) * 10);
   }
 
   /** Auf Touch-Geräten liegen oben rechts Buttons → Minimap darunter verschieben. */

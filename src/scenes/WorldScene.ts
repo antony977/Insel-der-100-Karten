@@ -1129,7 +1129,6 @@ export class WorldScene extends BaseScene {
       this.region = rid;
       this.game.events.emit('hud-banner', REGIONS[rid].name);
       this.registry.set('region', rid);
-      if (rid === 'runenhall' && Game.quests.stage('q-start') === 2) Game.quests.set('q-start', 3);
     }
     this.updateMusic();
     for (const t of TOWNS) {

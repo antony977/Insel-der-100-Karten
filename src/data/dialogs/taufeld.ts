@@ -1,13 +1,23 @@
 import { registerDialogs, type DialogCtx, type DialogDef } from '../../systems/Dialog';
 import { registerQuests } from '../../systems/Quests';
 import { STARTER_CARDS } from '../treasures';
+import { registerModule } from '../../systems/WorldModules';
+import { Game } from '../../systems/GameState';
+import { NPC_BY_ID } from '../npcs';
+import { TOWNS } from '../world/layout';
+import { TILE } from '../../config';
 
 registerQuests([
   {
     id: 'q-start',
     name: 'Willkommen auf der Insel',
     where: 'Taufeld · Lumi',
-    steps: ['Lege Lumis Startkarten in dein Kartenbuch.', 'Reise nach Runenhall im Norden und schau dir den Zauberladen an.', 'Du hast Runenhall erreicht. Viel Glück beim Sammeln!'],
+    steps: [
+      'Lege Lumis Startkarten in dein Kartenbuch und sprich danach noch einmal mit Lumi.',
+      'Werde rund um Taufeld stärker: Besiege Wesen und sammle Karten, bis du Stufe 3 erreichst. Oma Hilde und Bauer Korbinian haben auch Aufgaben für dich.',
+      'Reise nach Runenhall im Norden und schau dir den Zauberladen an. Der Pfeil zeigt dir die Richtung.',
+      'Du hast Runenhall erreicht. Viel Glück beim Sammeln!',
+    ],
   },
   {
     id: 'q-wolle',
@@ -103,9 +113,9 @@ const lumi: DialogDef = {
     },
     next: {
       say: [
-        'Sehr gut! Jetzt bist du bereit für die Insel.',
-        'Zauberkarten bekommst du in Runenhall im Norden – im Zauberladen „Zum blätternden Buch". Dort sitzt auch der Orden der Siegel.',
-        'Rund um Taufeld leben harmlose Wesen. Wenn du sie besiegst, verwandeln sie sich manchmal in ihre Karte. Probier es aus!',
+        'Sehr gut! Im Buch sind deine Karten sicher.',
+        'Rund um Taufeld leben harmlose Wesen. Wenn du sie besiegst, verwandeln sie sich manchmal in ihre Karte. Werde erst ein bisschen stärker – Stufe 3 sollte reichen.',
+        'Dann reise nach Runenhall im Norden. Dort gibt es Zauberkarten im Laden „Zum blätternden Buch", und der Orden der Siegel sucht neue Mitglieder. Die Wälder dorthin sind aber nichts für Anfänger!',
         'Und wenn du müde bist: An jedem Rastfeuer kannst du dich ausruhen und speichern.',
       ],
       do: (c) => {
@@ -295,3 +305,50 @@ const bodo: DialogDef = {
 const gasthof: DialogDef = { ...bodo, id: 'gasthof' };
 
 registerDialogs([lumi, wilma, hilde, korbinian, pia, bodo, gasthof]);
+
+/** Wegweiser für den Einstieg: nach dem Einordnen zurück zu Lumi, danach nach Runenhall */
+function townPos(id: string, dx = 0, dy = 0): [number, number] {
+  const t = TOWNS.find((x) => x.id === id);
+  return [((t?.x ?? 0) + dx) * TILE + 8, ((t?.y ?? 0) + dy) * TILE + 8];
+}
+
+let guide: [number, number] | null = null;
+registerModule({
+  id: 'einstieg',
+  maps: ['insel'],
+  load() {
+    guide = null;
+  },
+  update(h) {
+    let stage = Game.quests.stage('q-start');
+    const placed = Game.flags.has('lumi-start') && !Game.book.hand.some((c) => STARTER_CARDS.includes(Game.registry.idOf(c.uid)));
+    if (stage >= 1 && stage <= 3 && placed && Game.visited.has('runenhall')) {
+      Game.quests.set('q-start', 4);
+      stage = 4;
+    }
+    if (stage === 2 && Game.prog.level >= 3) {
+      Game.quests.set('q-start', 3);
+      stage = 3;
+      h.toast('Stufe 3 – jetzt bist du bereit für die Reise nach Runenhall im Norden. Folge dem Pfeil!');
+    }
+    let want: [number, number] | null = null;
+    if (stage === 1 && placed) {
+      if (!Game.flags.has('tipp:lumi-zurueck')) {
+        Game.flags.add('tipp:lumi-zurueck');
+        h.toast('Prima, die Karten sind im Buch! Sprich noch einmal mit Lumi – sie hat einen Rat für dich.');
+      }
+      const lumi = NPC_BY_ID.lumi;
+      want = townPos(lumi.town ?? 'taufeld', lumi.x, lumi.y);
+    } else if (stage === 3) want = townPos('runenhall');
+    if (want) {
+      // einen Pfeil anderer Aufgaben nicht überschreiben
+      if (!guide && h.scene.registry.get('questTarget')) return;
+      if (guide && guide[0] === want[0] && guide[1] === want[1]) return;
+      guide = want;
+      h.setTarget(want[0], want[1]);
+    } else if (guide) {
+      guide = null;
+      h.setTarget(null);
+    }
+  },
+});

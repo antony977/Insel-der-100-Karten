@@ -98,6 +98,7 @@ export class TalkScene extends BaseScene {
 
     this.choiceBox = this.add.container(0, 0).setVisible(false);
     this.choiceHL = addPanel(this, 0, 0, 10, 14, 'ui-frame-select');
+    this.choiceBox.add(this.choiceHL);
     this.input.on('pointerdown', () => {
       this.tapped = true;
     });

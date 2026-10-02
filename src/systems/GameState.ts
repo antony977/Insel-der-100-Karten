@@ -4,7 +4,7 @@ import { Book, OUTSIDE_SECONDS, type BookSave, MOVE_MESSAGES } from './cards/Boo
 import { CardRegistry, type RegistrySave } from './cards/CardRegistry';
 import { Inventory, type InventorySave, type UseAction } from './cards/Inventory';
 import { Progress, type ProgressSave } from './Progress';
-import { QuestLog } from './Quests';
+import { onQuestChange, QuestLog } from './Quests';
 import { RivalStore, type RivalSave } from './Rivals';
 
 export const SAVE_VERSION = 1;
@@ -72,6 +72,8 @@ export interface GameEvents {
   /** Nahkampfschlag der Spielfigur (für Kristalle u. Ä.) */
   'player-strike': (x: number, y: number, r: number, kind: string) => void;
   message: (text: string) => void;
+  /** Queststufe hat sich geändert */
+  'quest-changed': (id: string, from: number, to: number) => void;
 }
 
 class Emitter {
@@ -497,3 +499,4 @@ export class GameStateStore {
 }
 
 export const Game = new GameStateStore();
+onQuestChange((id, from, to) => Game.events.emit('quest-changed', id, from, to));

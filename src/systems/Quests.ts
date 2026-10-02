@@ -25,6 +25,14 @@ export function allQuests(): QuestDef[] {
   return [...QUESTS.values()];
 }
 
+type QuestListener = (id: string, from: number, to: number) => void;
+let listener: QuestListener | null = null;
+
+/** Wird bei jeder Stufenänderung aufgerufen (nicht beim Laden) */
+export function onQuestChange(fn: QuestListener | null): void {
+  listener = fn;
+}
+
 export class QuestLog {
   readonly stages = new Map<string, number>();
 
@@ -33,7 +41,9 @@ export class QuestLog {
   }
 
   set(id: string, stage: number): void {
+    const from = this.stage(id);
     this.stages.set(id, stage);
+    if (from !== stage) listener?.(id, from, stage);
   }
 
   done(id: string): boolean {
