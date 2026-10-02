@@ -41,6 +41,8 @@ export class NewGameScene extends BaseScene {
   private keyObjs: Phaser.GameObjects.BitmapText[][] = [];
   private keyHL!: Phaser.GameObjects.NineSlice;
   private busy = false;
+  /** vorbelegter Text wird beim ersten getippten Buchstaben ersetzt */
+  private fresh = false;
   private console!: Phaser.GameObjects.Container;
   private openedAt = 0;
 
@@ -158,12 +160,18 @@ export class NewGameScene extends BaseScene {
       this.confirmEntry();
       e.preventDefault();
     } else if (e.key.length === 1 && /[A-Za-zÄÖÜäöü \-]/.test(e.key)) {
-      this.edit((s) => (s.length < 14 ? s + e.key : s));
+      this.typeChar(e.key);
       e.preventDefault();
     }
   };
 
+  private typeChar(ch: string): void {
+    const replace = this.fresh;
+    this.edit((s) => (replace ? ch : s.length < 14 ? s + ch : s));
+  }
+
   private edit(fn: (s: string) => string): void {
+    this.fresh = false;
     Sound.play('talk', { rate: 1.2 });
     if (this.step === 'name') this.name = fn(this.name);
     else this.tech = fn(this.tech);
@@ -177,6 +185,7 @@ export class NewGameScene extends BaseScene {
     this.dyn.push(addText(this, GAME_W / 2, 42, wrapText(sub, 420).join('\n'), { font: 'px-s', ox: 0.5, color: PAL.silver, align: 'center' }));
     this.dyn.push(addPanel(this, GAME_W / 2 - 110, 72, 220, 24, 'ui-frame-gold'));
     this.entry = addText(this, GAME_W / 2, 78, `${value}_`, { font: 'px-o', ox: 0.5, color: PAL.white });
+    this.fresh = value.length > 0;
     this.dyn.push(this.entry);
     const kw = 22;
     const kh = 18;
@@ -229,7 +238,7 @@ export class NewGameScene extends BaseScene {
   private pressKey(): void {
     const ch = ROWS[this.ky][this.kx] ?? ' ';
     if (ch === ' ') return;
-    this.edit((s) => (s.length < 14 ? s + ch : s));
+    this.typeChar(ch);
     this.moveKey(0, 0);
   }
 
