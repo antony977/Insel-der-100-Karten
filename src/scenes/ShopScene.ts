@@ -223,6 +223,8 @@ export class ShopScene extends BaseScene {
     if (r.kind === 'sell') {
       const uid = r.uid!;
       if (!Game.book.locate(uid)) return;
+      // fehlt die Karte noch im Sammelbuch, kann die Phönixtinte sie zurückholen
+      if (r.card.kind === 'sammel' && Game.book.sammel[r.card.no] === null) Game.markLost(r.card.id);
       Game.book.remove(uid);
       Game.registry.destroy(uid);
       Game.quick = Game.quick.map((q) => (q === uid ? null : q));
