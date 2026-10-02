@@ -153,6 +153,7 @@ const lumi: DialogDef = {
       say: [
         'Dann wachst du am letzten Rastfeuer wieder auf. Aber dein Geld und alle Karten in den freien Slots sind verloren.',
         'Die Sammelseiten bleiben sicher. Darum: Wertvolles gehört in die Sammelseiten!',
+        'Und falls dir doch einmal eine seltene Karte verloren geht: Die sagenhafte Phönixtinte soll verlorene Karten wiederherstellen können.',
       ],
       goto: 'tips',
     },

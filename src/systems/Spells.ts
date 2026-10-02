@@ -69,8 +69,7 @@ export function playerSide(): Side {
       Game.events.emit('book-changed');
     },
     lose: (uid) => {
-      Game.lost.push(Game.registry.idOf(uid));
-      if (Game.lost.length > 10) Game.lost.shift();
+      Game.markLost(Game.registry.idOf(uid));
       Game.book.remove(uid);
       Game.quick = Game.quick.map((q) => (q === uid ? null : q));
       Game.events.emit('book-changed');
@@ -395,12 +394,17 @@ export function castSpell(uid: number, h: SpellHost): string | null {
       done('Ein Ankerstein hält dich 10 Minuten lang fest an deinem Platz.');
       return null;
     case 'Z22': {
-      const id = Game.lost.pop();
-      if (!id) return 'Du hast in letzter Zeit keine Karte verloren.';
-      if (!Game.registry.canCreate(id)) {
-        Game.lost.push(id);
-        return `„${card(id).name}" kann nicht wiederhergestellt werden – das Limit ist erreicht.`;
-      }
+      if (!Game.lost.length) return 'Du hast in letzter Zeit keine Karte verloren.';
+      // bevorzugt die jüngste verlorene Karte, die im Sammelbuch noch fehlt
+      const missing = (id: string) => {
+        const d = card(id);
+        return d.kind === 'sammel' && Game.book.sammel[d.no] === null;
+      };
+      let i = -1;
+      for (let k = Game.lost.length - 1; k >= 0 && i < 0; k--) if (missing(Game.lost[k]) && Game.registry.canCreate(Game.lost[k])) i = k;
+      for (let k = Game.lost.length - 1; k >= 0 && i < 0; k--) if (Game.registry.canCreate(Game.lost[k])) i = k;
+      if (i < 0) return `„${card(Game.lost[Game.lost.length - 1]).name}" kann nicht wiederhergestellt werden – das Limit ist erreicht.`;
+      const id = Game.lost.splice(i, 1)[0];
       consume(uid);
       h.fx(color);
       Game.giveCard(id);

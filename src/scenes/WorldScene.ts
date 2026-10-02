@@ -265,6 +265,10 @@ export class WorldScene extends BaseScene {
       ),
       Game.events.on('card-transformed', (def, msg) => this.toast(`Zu spät! ${cardLabel(def)} ${def.name} hat sich verwandelt. ${msg}`)),
       Game.events.on('message', (t) => t && this.toast(t)),
+      // Quest-Fortschritt bald sichern (kurz nachdem die Welt weiterläuft)
+      Game.events.on('quest-changed', () => {
+        this.autosaveT = Math.max(this.autosaveT, AUTOSAVE_SECONDS - 1);
+      }),
       Game.events.on('level-up', () => {
         this.levelUpPending = true;
       }),

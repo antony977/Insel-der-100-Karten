@@ -283,6 +283,7 @@ export class GameStateStore {
     const expired = this.book.tick(dt);
     for (const uid of expired) {
       const def = card(this.registry.idOf(uid));
+      this.markLost(def.id);
       this.registry.destroy(uid);
       const msg = def.kind === 'zauber' ? `${def.name} ist zu Staub zerfallen.` : this.inv.materialize(def);
       this.events.emit('card-transformed', def, msg);
@@ -297,7 +298,10 @@ export class GameStateStore {
       if (g.kind !== 'card' || g.timeLeft === undefined) continue;
       g.timeLeft -= dt;
       if (g.timeLeft <= 0) {
-        if (g.uid !== undefined) this.registry.destroy(g.uid);
+        if (g.uid !== undefined) {
+          this.markLost(g.id);
+          this.registry.destroy(g.uid);
+        }
         const def = card(g.id);
         if (def.kind === 'zauber') {
           g.id = '';
@@ -404,6 +408,12 @@ export class GameStateStore {
     return this.dropToGround({ kind: 'card', id, uid: inst.uid, timeLeft: OUTSIDE_SECONDS, map: this.player.map, x, y });
   }
 
+  /** Verlorene Karten merken (Phönixtinte kann sie wiederherstellen) */
+  markLost(id: string): void {
+    this.lost.push(id);
+    if (this.lost.length > 20) this.lost.shift();
+  }
+
   /** Erschöpft: Geld und alle Karten der freien Slots gehen verloren, Sammelseiten bleiben. */
   die(): { money: number; cards: string[] } {
     const money = this.inv.money;
@@ -413,12 +423,14 @@ export class GameStateStore {
       const uid = this.book.frei[i];
       if (uid === null) continue;
       cards.push(this.registry.idOf(uid));
+      this.markLost(this.registry.idOf(uid));
       this.book.remove(uid);
       this.registry.destroy(uid);
     }
     // Handkarten verwandeln sich nicht – sie gehen ebenfalls verloren
     for (const h of [...this.book.hand]) {
       cards.push(this.registry.idOf(h.uid));
+      this.markLost(this.registry.idOf(h.uid));
       this.book.remove(h.uid);
       this.registry.destroy(h.uid);
     }
