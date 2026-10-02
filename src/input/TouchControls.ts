@@ -50,6 +50,7 @@ export class TouchControls {
     this.build();
     this.layout();
     window.addEventListener('resize', () => this.layout());
+    Display.onLayout(() => this.layout());
     Settings.onChange((_s, changed) => {
       if (changed.some((c) => c === 'touchSize' || c === 'touchOpacity' || c === 'leftHanded')) this.layout();
     });
@@ -192,11 +193,17 @@ export class TouchControls {
       el.style.top = `${cy}px`;
     }
     // Joystick-Zone: andere Bildschirmhälfte, unterhalb der oberen Leiste
+    // (im Hochformat erst unterhalb des Spielbilds, damit Antippen im Bild frei bleibt)
     const zoneW = W * 0.48;
+    let zoneTop = Math.round(H * 0.16);
+    if (Display.portraitPlay) {
+      const canvas = document.querySelector('#game canvas');
+      if (canvas) zoneTop = Math.max(zoneTop, Math.round(canvas.getBoundingClientRect().bottom + 6));
+    }
     this.zone.style.left = left ? `${W - zoneW}px` : '0px';
     this.zone.style.width = `${zoneW}px`;
-    this.zone.style.top = `${Math.round(H * 0.16)}px`;
-    this.zone.style.height = `${H - Math.round(H * 0.16)}px`;
+    this.zone.style.top = `${zoneTop}px`;
+    this.zone.style.height = `${Math.max(0, H - zoneTop)}px`;
     const baseSize = 120 * s;
     this.base.style.width = this.base.style.height = `${baseSize}px`;
     this.knob.style.width = this.knob.style.height = `${baseSize * 0.46}px`;

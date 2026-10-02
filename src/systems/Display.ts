@@ -4,6 +4,7 @@ import { Settings, type RenderQuality, type ScaleMode } from './Settings';
 import { renderTextRaster } from '../gfx/font/PixelFont';
 import { phoneIcon } from '../gfx/generators/ui';
 import { PAL } from '../gfx/palette';
+import { Storage } from './Storage';
 
 /**
  * Anzeige-System: pixelgenaues Integer-Scaling in Gerätepixeln.
@@ -66,6 +67,11 @@ class DisplayManager {
   private rotateEl: HTMLElement | null = null;
   private pausedByRotate = false;
   private scheduled = false;
+  /** Spielen im Hochformat erlaubt (z. B. in Apps, die sich nicht mitdrehen) */
+  private portraitOk = Storage.get<boolean>('portrait-ok', false);
+  private layoutListeners = new Set<() => void>();
+  /** Hochformat-Modus aktiv: Spiel oben, Bedienelemente darunter */
+  portraitPlay = false;
 
   init(game: Phaser.Game): void {
     this.game = game;
@@ -84,6 +90,12 @@ class DisplayManager {
       if (changed.includes('scaleMode') || changed.includes('renderQuality')) this.schedule();
     });
     this.apply();
+  }
+
+  /** Nach jeder Neuberechnung der Anzeige (z. B. für die Touch-Steuerung) */
+  onLayout(l: () => void): () => void {
+    this.layoutListeners.add(l);
+    return () => this.layoutListeners.delete(l);
   }
 
   onScale(l: ScaleListener): () => void {
@@ -131,11 +143,16 @@ class DisplayManager {
     const vh = vv ? vv.height : window.innerHeight;
     const ins = this.safeInsets();
     const s = Settings.get();
+    const portrait = vh > vw * 1.05 && this.isTouchDevice();
+    this.portraitPlay = portrait && this.portraitOk;
+    document.body.classList.toggle('portrait-play', this.portraitPlay);
     const layout = computeLayout({
       width: Math.max(1, vw - ins.left - ins.right),
-      height: Math.max(1, vh - ins.top - ins.bottom),
+      // im Hochformat bleibt oben Platz für die Knopfleiste und unten für Joystick und Knöpfe
+      height: Math.max(1, this.portraitPlay ? (vh - ins.top - ins.bottom) * 0.5 : vh - ins.top - ins.bottom),
       dpr: window.devicePixelRatio || 1,
-      mode: s.scaleMode,
+      // im Hochformat die ganze Breite nutzen statt ganzzahlig zu verkleinern
+      mode: this.portraitPlay ? 'fit' : s.scaleMode,
       quality: s.renderQuality,
     });
     const canvas = game.canvas;
@@ -157,6 +174,7 @@ class DisplayManager {
       for (const l of this.listeners) l(r);
     }
     this.updateRotateHint(vw, vh);
+    for (const l of this.layoutListeners) l();
   }
 
   private buildRotateHint(): void {
@@ -175,14 +193,39 @@ class DisplayManager {
     text.width = t.w * 3;
     text.height = t.h * 3;
     text.alt = 'Bitte Gerät drehen';
-    el.append(phone, text);
+    // Manche Apps drehen sich nicht mit – dann im Hochformat spielen
+    const note = document.createElement('img');
+    const n = renderTextRaster('Dreht sich das Bild nicht mit?', PAL.mist, 'outline');
+    note.src = n.toDataURL(2);
+    note.width = n.w * 2;
+    note.height = n.h * 2;
+    note.alt = 'Dreht sich das Bild nicht mit?';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'portrait-btn';
+    const b = renderTextRaster('Im Hochformat spielen', PAL.cream, 'outline');
+    const label = document.createElement('img');
+    label.src = b.toDataURL(2);
+    label.width = b.w * 2;
+    label.height = b.h * 2;
+    label.alt = 'Im Hochformat spielen';
+    btn.append(label);
+    btn.addEventListener('click', () => {
+      this.portraitOk = true;
+      Storage.set('portrait-ok', true);
+      this.apply();
+    });
+    const extra = document.createElement('div');
+    extra.className = 'portrait-choice';
+    extra.append(note, btn);
+    el.append(phone, text, extra);
   }
 
   private updateRotateHint(vw: number, vh: number): void {
     const el = this.rotateEl;
     if (!el || !this.game) return;
     const portrait = vh > vw * 1.05;
-    const show = portrait && this.isTouchDevice();
+    const show = portrait && this.isTouchDevice() && !this.portraitOk;
     el.classList.toggle('visible', show);
     if (show && !this.pausedByRotate) {
       this.pausedByRotate = true;
