@@ -5,10 +5,11 @@ Auf einer geheimnisvollen Insel ist alles eine Karte – Ziel ist es, alle 100 S
 ins eigene Kartenbuch zu bekommen. Alle Grafiken, Schriften, Sounds und die Musik werden per Code
 erzeugt. Das Spieldesign steht in [DESIGN.md](DESIGN.md).
 
-**Stand:** Meilenstein 5 – Soundeffekte und Musik (eigener Synthesizer, je Region ein Stück,
-Lagerfeuer-Thema). Dazu die ganze Insel (13 Regionen, 7 Städte), Taufeld und Runenhall mit
-Figuren, Dialogen, Quests und Läden, alle 40 Zauber, Intro mit Affinitätswahl, Weltkarte (M4),
-Kampf und Aura (M3), das Kartenbuch mit allen Regeln (M2) und das Speichersystem.
+**Stand:** Meilenstein 7 – das Spiel ist von Anfang bis Ende spielbar: alle 100 Sammelkarten sind
+erhältlich (Monster, Läden, Truhen, Fundstellen, über 40 Quests, 6 Minispiele, 9 Bossmonster),
+KI-Rivalen sammeln mit, die Geschichte um die Aschenhand, das Finale mit Spielleiter Nullpunkt,
+Abspann und New Game+. Dazu Tag/Nacht mit Lichtern, Wetter je Region, Sound und Musik (M5),
+die ganze Insel mit 7 Städten (M4), Kampf und Aura (M3) und das Kartenbuch mit allen Regeln (M2).
 
 ## Starten
 
@@ -110,16 +111,45 @@ Der Workflow `.github/workflows/deploy.yml` baut das Spiel und veröffentlicht e
 - **Neues Spiel:** kurzes Intro, Name, Wahl der Aura-Affinität (Wurzel, Strömung, Echo, Faden,
   Spiegel) und ein eigener Name für die Spezialtechnik.
 - **Start am Ersten Tor in Taufeld.** Lumi erklärt alles und schenkt dir die ersten Karten.
-- **Städte:** Taufeld (Krämerin, Gasthof, Oma Hilde, Bauer Korbinian), Runenhall im Norden
-  (Orden der Siegel, Bibliothek, Zauberladen mit Siegelpacks, Kräuterladen, Teestube, Schuster,
-  Tauschbörse). Möwenhafen, Würfelheim, Hohenkamm, Sandspiegel und Rosenweil sind schon da und
-  werden in Meilenstein 6 belebt.
+- **Sieben Städte**, jede mit eigenen Figuren, Läden und Quests:
+  - **Taufeld** – Krämerin, Gasthof, Oma Hilde (Wolle), Bauer Korbinian (Glocke), Wunschbrunnen.
+  - **Runenhall** – Orden der Siegel (Prüfung, Gildenturm), Bibliothek (Rätsel), Zauberladen
+    (Siegelpacks), Kräuterladen, Teestube, Schuster, Tauschbörse, Tintenkobold-Dieb.
+  - **Möwenhafen** – Hafenmeisterin (Seetor-Quest, Logbuch), Angelwette, Leuchtfeuer in der
+    Sturmnacht, Boot zu den Möwenklippen, Hafenkrake.
+  - **Würfelheim** – Casino „Goldene Sieben" (Hoch oder Tief, Höher oder Tiefer, Sternenautomat
+    mit Jackpot), Falschspieler entlarven, Kasimirs Schulden, Preisladen (Chips), Tresorraum.
+  - **Hohenkamm** – Brakkas Prüfungen, Turnier im Felsenkessel (5 Wellen), Klippenball-Liga
+    (2 gegen 2), frierender Eiswächter, Adlerhorst, Gipfel.
+  - **Sandspiegel** – Wasserdiebe (Aura-Sinn!), Karawanen-Eskorte, Diamanthenne, Spiegelsaal
+    (Lichträtsel), verschüttete Oase mit der Sphinx der Stunden.
+  - **Rosenweil** – Herzensgeschichte mit zwei Enden (Ehrlichkeit lohnt sich!), Poet,
+    Rosenfest-Tanz (abends), Ständchen auf den Gartenglocken, verwilderter Rosengarten.
+- **Wildnis:** sieben Aussichtspunkte, Windmühlen (Mehl), Statuen-Rätsel und Zeitrennen in den
+  Ruinen, Irrlicht-Laternen und ein verirrter Forscher im Nebelhain, Grabstellen (Schaufel),
+  eine Insel im Silbersee (Wolkenfloss), Glimmerhöhle (Kristalle mit Aufladeschlag abbauen).
+- **Wege, die Karten öffnen:** Hafenpass (Boot), Kletterranke (Adlerhorst), Moosbarts Herzsamen
+  (Rankenbrücke zum Gipfel), Irrlicht im Glas (Nebelwand), Dornenring (Wurzelpforte),
+  Oasenschlüssel, Tiefenperle (Muschelgrotte), Ewige Laterne (Labyrinth der Leeren Seiten).
+- **Bosse** mit Phasen und angekündigten Angriffen (rote Flächen = ausweichen!): Moosbart,
+  Tintenkoloss, Tiefenmaul, Hausbankier, Sturmgreif Kragor, Nebelmutter, Dornenbaron,
+  der Leere Leser und Varga Aschenherz.
+- **Rivalen:** Mila, Bruno, Frida, Juna, Lio, Tjark, Kasimir und die Aschenhand sammeln selbst
+  Karten (die Limits gelten für alle). Ansprechen zum Plaudern (Hinweise), Tauschen und Verbünden.
+  Die Handlanger der Aschenhand zaubern im Kampf – Schutzzauber helfen!
+- **Tag und Nacht:** Ein Tag dauert 12 Minuten. Nachts leuchten Laternen und Lagerfeuer, manche
+  Monster zeigen sich nur nachts oder bei Vollmond. Jede dritte Nacht zieht ein Sturm auf.
+  Am Rastfeuer kann man bis zum Morgen oder bis zur Nacht warten.
+- **Wetter:** Regen, Sturm mit Blitzen, Schnee in Hohenkamm, Nebel im Nebelhain, Sandsturm in
+  Sandspiegel. Die Wetterfahne ändert das Wetter (am Rastfeuer).
+- **Finale:** Sind alle 100 Sammelseiten gefüllt, leuchtet das Erste Tor. Spielleiter Nullpunkt
+  lässt dich drei Karten für die echte Welt wählen – danach Abspann und **New Game+**
+  (Stufe und Talente bleiben, Monster werden stärker).
 - **Rastfeuer:** ausruhen (heilt, speichert, Wiederaufwach-Punkt). **Stadtbrunnen:** Ziel für
   Brunnensprung; der Brunnen in Taufeld ist ein Wunschbrunnen.
-- **Weltkarte (M):** zeigt nur, was du schon erkundet hast.
-- **Zauber:** im Buch eine Zauberkarte (freie Slots) wählen → „Wirken" oder „Auf Taste" (1–3).
-- **Quest-Log:** neuer Reiter „Quests" im Kartenbuch.
-- Versteckte Dinge (z. B. ein vierblättriger Klee) siehst du nur mit **Aura-Sinn**.
+- **Weltkarte (M):** zeigt nur, was du schon erkundet hast (die Kartografenfeder deckt alles auf).
+- **Quest-Log:** Reiter „Quests" im Kartenbuch. Ein blauer Pfeil zeigt bei manchen Quests den Weg.
+- Versteckte Dinge siehst du nur mit **Aura-Sinn** (oder der Leuchtturmlinse).
 
 ### Zum Ausprobieren
 
@@ -201,21 +231,24 @@ npm run build     # Produktions-Build inkl. Service Worker
 
 ```
 src/
-  scenes/     Boot, Titel, Welt, HUD, Kartenbuch, Pause, Einstellungen, Tastenbelegung,
-              Speicherplätze, Dialog
-  systems/    Anzeige/Skalierung, Einstellungen, Spielzustand, Speichersystem, Effekt-Pool
+  scenes/       Boot, Titel, Neues Spiel, Welt, HUD, Kartenbuch, Gespräche, Läden, Auswahl,
+                Weltkarte, Stufenaufstieg, Pause, Einstellungen, Speicherplätze, Abspann
+  scenes/mini/  Minispiele: Casino, Angeln, Tanz, Ständchen, Spiegelsaal, Klippenball
+  systems/      Anzeige, Einstellungen, Spielzustand, Speichern, Dialoge, Quests, Zauber,
+                Wetter, Welt-Module (Quest-Logik), Rivalen-KI
   systems/cards/  Karten-Register (Limits), Buch (Slots, Hand, 60-s-Regel), Inventar
-  systems/combat/ Schaden, Monster-KI und Spawn-Zonen, Geschosse, Schadenszahlen
-  entities/   Spielfigur, Monster
-  input/      Aktionen, Eingabe-Manager (Tastatur/Maus/Gamepad), Touch-Overlay
-  world/      Kartendaten, Terrain, Tile-Streaming, Objekt-Streaming, Boden-Karten
-  data/       datengetriebene Inhalte (100 Sammelkarten, 40 Zauber, 35 Monster, Aura-Techniken,
-              Talente, Truhen, Weltobjekte, Testkarte)
-  gfx/        Palette, Pixel-Schrift, Grafik-Generatoren, Asset-Loader
-  ui/         Text, Rahmen, Menüs
-  audio/      Synthesizer, Soundeffekte, Chiptune-Komponist, Musikstücke, Audio-Engine (Web Audio)
-scripts/      Icon-Generator, PNG-Encoder
-tests/        Unit-Tests
+  systems/combat/ Schaden, Monster-KI, Bosskämpfe, Geschosse, Schadenszahlen
+  entities/     Spielfigur, Monster, Figuren
+  input/        Aktionen, Eingabe-Manager (Tastatur/Maus/Gamepad), Touch-Overlay
+  world/        Insel-Generator, Dungeon-Baukasten (ASCII), Tag/Nacht/Wetter, Tile-Streaming
+  data/         datengetriebene Inhalte: 100 Sammelkarten, 40 Zauber, Monster und Bosse,
+                Figuren, Läden, Türen, Truhen, Inselplan, Dungeons
+  data/dialogs/ Gespräche und Quests je Stadt, Wildnis, Rivalen, Finale
+  gfx/          Palette, Pixel-Schrift, Grafik-Generatoren, Asset-Loader
+  audio/        Synthesizer, Soundeffekte, Chiptune-Komponist, Musikstücke, Audio-Engine
+  ui/           Text, Rahmen, Menüs
+scripts/        Icon-Generator, PNG-Encoder
+tests/          Unit-Tests (Karten, Kampf, Insel-Erreichbarkeit, Dungeons, Kartenquellen, Audio …)
 ```
 
 ### Grafiken ersetzen
