@@ -66,7 +66,8 @@ export class MapScene extends BaseScene {
     ctx.putImageData(img, 0, 0);
     this.textures.addCanvas(key, canvas);
     this.add.image(x0, y0, key).setOrigin(0, 0).setScale(s);
-    addText(this, GAME_W / 2, 4, Game.player.map === 'insel' ? 'Insel der 100 Karten' : 'Karte', { font: 'px-o', ox: 0.5, color: PAL.gold });
+    const wm = this.registry.get('worldMap') as { name?: string } | undefined;
+    addText(this, GAME_W / 2, 4, Game.player.map === 'insel' ? 'Insel der 100 Karten' : wm?.name || 'Karte', { font: 'px-o', ox: 0.5, color: PAL.gold });
     if (Game.player.map === 'insel') {
       for (const t of TOWNS) {
         if (!Game.visited.has(t.id) && !all) continue;

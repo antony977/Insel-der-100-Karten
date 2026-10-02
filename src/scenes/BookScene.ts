@@ -851,8 +851,14 @@ export class BookScene extends BaseScene {
     this.text(rx, ry, q.where, PAL.wood);
     ry += 16;
     const stage = Game.quests.stage(id);
+    // lange Quests: ältere Schritte zusammenfassen, damit die Seite nicht überläuft
+    const first = Math.max(0, Math.min(stage, q.steps.length) - 3);
+    if (first > 0) {
+      this.text(rx, ry, `✓ … ${first} ${first === 1 ? 'früherer Schritt' : 'frühere Schritte'}`, PAL.sandShade);
+      ry += 14;
+    }
     q.steps.forEach((step, i) => {
-      if (i >= stage) return;
+      if (i >= stage || i < first) return;
       const cur = i === stage - 1 && !Game.quests.done(id);
       const t = this.text(rx, ry, `${cur ? '▶ ' : '✓ '}${step}`, cur ? INK : PAL.sandShade, { maxWidth: PAGE_W - 16 });
       ry += t.height + 5;

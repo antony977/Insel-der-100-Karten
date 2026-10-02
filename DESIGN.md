@@ -378,3 +378,28 @@ Dialogsystem mit Portraits, Tippeffekt, Entscheidungen und Quest-Log.
 - Grafiken werden beim Start per Code erzeugt (`src/gfx`). Jede Textur kann durch eine PNG in
   `public/gfx/` ersetzt werden (Layout siehe `src/gfx/AssetManifest.ts`).
 - Inhalte datengetrieben in `src/data/`.
+
+## 11. Umsetzung (Stand Version 1.0)
+
+- **Fortschritt und Wege:** Hafenpass (Seetor-Quest) → Boot zu den Möwenklippen (Logbuch →
+  Wolkenfloss → Seeinsel, Kletterranke → Adlerhorst). Moosbart (Wiesenkessel) → Herzsamen →
+  Rankenbrücke zum Gipfel (Kragor). Dornenbaron (Rosengarten) → Dornenring → Wurzelpforte im
+  Nebelherz (Nebelmutter, Wurzelhydra; Zugang zum Nebelherz mit dem Irrlicht im Glas).
+  Nebelmutter → Ewige Laterne → Labyrinth der Leeren Seiten (Tür ohne Schloss → Seitenschlüssel,
+  Leerer Leser). Tiefenmaul (Hafenbecken) → Tiefenperle → Muschelgrotte. Hausbankier im
+  Tresorraum (Silberne Spielmarke). Tintenkoloss im Gildenturm (Ordensmitglieder).
+- **Sphinx der Stunden:** gibt den Sternenkompass für drei gelöste Rätsel (kein Kampf).
+- **Bosse:** Angriffsarten Stampfer, Beben, Sturmangriff, Salve, Flächenregen, Spirale,
+  Beschwörung, Teleport; Phase 2 ab 50 % LP. Jeder Angriff wird mit roten Flächen angekündigt.
+- **Rivalen:** sammeln stündlich (Rate je Figur, Ränge steigen mit den Spieltagen), nehmen nie
+  das letzte freie Exemplar einer Karte, wechseln alle sechs Spielstunden den Ort. Freundliche
+  Rivalen tauschen fair und verbünden sich (ab 10 eigenen Karten); Tjark verkauft Hinweise.
+- **Aschenhand:** beginnt ab 12 Karten oder Tag 4. Drei Handlanger-Duelle (sie zaubern Raub-,
+  Brand- und Bannzauber, Schutzzauber wirken), zwei Verbündete gewinnen, Varga in der Aschenhalle.
+- **Minispiele:** Casino (drei Spiele), Angeln, Tanz (Rhythmus), Ständchen (Melodie merken),
+  Spiegelsaal (Lichträtsel), Klippenball (2 gegen 2); dazu Arena-Wellen, Zeitrennen,
+  Karawanen-Eskorte und Leuchtturm-Verteidigung als Welt-Aufgaben.
+- **Tag/Nacht und Wetter:** Ein Spieltag = 12 Minuten. Wetter deterministisch aus Tag und Uhrzeit,
+  jede dritte Nacht Sturm. Licht per Multiplikations-Ebene in niedriger Auflösung (Pixel-Optik).
+- **Finale:** 100/100 → Spielleiter Nullpunkt, drei Karten für die echte Welt, Abspann,
+  New Game+ (bis Stufe 3, Monster ×1,6 je Stufe).

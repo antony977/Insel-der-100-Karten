@@ -71,7 +71,7 @@ export class TitleScene extends BaseScene {
     this.menu = new Menu(this, GAME_W / 2 - 62, 181, 124, items, { rowH: 14 });
     if (!SaveSystem.info('auto')) this.menu.select(1);
 
-    addText(this, 4, GAME_H - 13, `v${VERSION} · Meilenstein 7`, { font: 'px-o', color: PAL.silver });
+    addText(this, 4, GAME_H - 13, `v${VERSION}`, { font: 'px-o', color: PAL.silver });
     this.sourceText = addText(this, GAME_W - 4, GAME_H - 13, '', { font: 'px-o', ox: 1, color: PAL.silver });
     const updateSource = (s: InputSource) => this.sourceText.setText(`Eingabe: ${SOURCE_LABEL[s]}`);
     updateSource(Input.source);

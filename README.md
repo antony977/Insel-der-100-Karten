@@ -5,7 +5,7 @@ Auf einer geheimnisvollen Insel ist alles eine Karte – Ziel ist es, alle 100 S
 ins eigene Kartenbuch zu bekommen. Alle Grafiken, Schriften, Sounds und die Musik werden per Code
 erzeugt. Das Spieldesign steht in [DESIGN.md](DESIGN.md).
 
-**Stand:** Meilenstein 7 – das Spiel ist von Anfang bis Ende spielbar: alle 100 Sammelkarten sind
+**Stand:** Version 1.0 (Meilenstein 8) – das Spiel ist von Anfang bis Ende spielbar: alle 100 Sammelkarten sind
 erhältlich (Monster, Läden, Truhen, Fundstellen, über 40 Quests, 6 Minispiele, 9 Bossmonster),
 KI-Rivalen sammeln mit, die Geschichte um die Aschenhand, das Finale mit Spielleiter Nullpunkt,
 Abspann und New Game+. Dazu Tag/Nacht mit Lichtern, Wetter je Region, Sound und Musik (M5),
