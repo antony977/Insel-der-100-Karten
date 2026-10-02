@@ -160,6 +160,7 @@ export class WorldScene extends BaseScene {
     this.pendingCards = [];
     this.region = '';
     this.warping = false;
+    this.walkWarpArmed = false;
     if (!this.init0.continue && !this.init0.warp) Game.newGame();
     if (this.init0.warp) {
       Game.player.map = this.init0.warp.map;
@@ -742,6 +743,28 @@ export class WorldScene extends BaseScene {
     this.fx.spawn('poof', o.x, o.y - 10, { scale: 2 });
   }
 
+  /** erst scharf, wenn man einmal ausserhalb eines Eingangs stand (kein Hin und Her beim Ankommen) */
+  private walkWarpArmed = false;
+
+  /** Höhleneingänge und Treppen betritt man auch einfach durch Hineinlaufen */
+  private checkWalkInWarp(): void {
+    const p = this.player;
+    const o = this.map.findInteractable(p.x, p.y, 18);
+    let inside = false;
+    if (o && o.tag?.startsWith('warp:') && (o.type === 'cave' || o.type === 'stairs')) {
+      const dx = p.x - o.x;
+      const dy = p.y - o.y;
+      inside = o.type === 'cave' ? Math.abs(dx) < 8 && dy < -2 && dy > -13 : Math.abs(dx) < 9 && dy < 2 && dy > -14;
+    }
+    if (!inside) {
+      this.walkWarpArmed = true;
+      return;
+    }
+    if (!this.walkWarpArmed || !o) return;
+    this.walkWarpArmed = false;
+    this.useWarp(o);
+  }
+
   private useWarp(o: WorldObject): void {
     const target = o.tag?.startsWith('warp:') ? o.tag.slice(5) : '';
     this.warpTo(target);
@@ -841,6 +864,7 @@ export class WorldScene extends BaseScene {
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       this.player.x = x;
       this.player.y = y;
+      this.walkWarpArmed = false;
       this.camX = x;
       this.camY = y - 12;
       this.enemies.clear();
@@ -1272,6 +1296,7 @@ export class WorldScene extends BaseScene {
         return;
       }
       this.player.update(simDt, Input);
+      this.checkWalkInWarp();
       Game.tick(simDt);
       for (const m of this.mods) m.update?.(this.host, simDt);
       if (this.hudTimer) {
