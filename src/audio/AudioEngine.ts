@@ -3,6 +3,7 @@ import { SFX } from './sfxDefs';
 import { SONGS } from './songs';
 import { renderSong } from './composer';
 import { Settings, type SettingsData } from '../systems/Settings';
+import { readGamepads } from '../input/InputManager';
 
 /**
  * Sound-System auf Basis der Web-Audio-API.
@@ -71,7 +72,7 @@ class AudioEngine {
     // Gamepad: Phaser-unabhängig prüfen
     const padCheck = () => {
       if (this.unlocked) return;
-      const pads = navigator.getGamepads?.() ?? [];
+      const pads = readGamepads();
       for (const p of pads) if (p && p.buttons.some((b) => b.pressed)) unlock();
       requestAnimationFrame(padCheck);
     };

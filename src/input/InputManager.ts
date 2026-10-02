@@ -1,6 +1,15 @@
 import { ACTIONS, RESERVED_KEYS, type Action } from './Actions';
 import { Settings } from '../systems/Settings';
 
+/** Gamepads lesen – in eingebetteten Seiten kann der Browser den Zugriff verweigern (wirft dann) */
+export function readGamepads(): (Gamepad | null)[] {
+  try {
+    return navigator.getGamepads ? [...navigator.getGamepads()] : [];
+  } catch {
+    return [];
+  }
+}
+
 export type InputSource = 'keyboard' | 'mouse' | 'touch' | 'gamepad';
 export type InputContext = 'gameplay' | 'menu';
 export type NavDir = 'up' | 'down' | 'left' | 'right';
@@ -314,8 +323,8 @@ export class InputManager {
   private pollGamepad(): void {
     this.pad.fill(0);
     this.padStickX = this.padStickY = 0;
-    const pads = navigator.getGamepads ? navigator.getGamepads() : null;
-    if (!pads) return;
+    const pads = readGamepads();
+    if (!pads.length) return;
     let gp: Gamepad | null = null;
     for (const p of pads) {
       if (p && p.connected) {
