@@ -547,7 +547,9 @@ export class BookScene extends BaseScene {
     }
     // Textblock
     let by = y + CARD_H * 2 + 6;
-    const maxY = PAGE_Y + 196 - this.buttonRowCount() * 21;
+    // Text darf bis knapp über die oberste Knopfreihe reichen (siehe renderButtons)
+    const rows = this.buttonRowCount();
+    const maxY = rows ? PAGE_Y + 200 - (rows - 1) * 21 - 2 : PAGE_Y + 216;
     const block = (label: string, body: string, color: number) => {
       if (by > maxY - 12) return;
       const lt = this.text(x, by, label, HEAD);
