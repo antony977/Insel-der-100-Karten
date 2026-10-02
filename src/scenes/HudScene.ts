@@ -413,10 +413,10 @@ export class HudScene extends BaseScene {
   private layoutForTouch(touch: boolean): void {
     let y = 4;
     if (touch) {
-      const rect = this.game.canvas.getBoundingClientRect();
+      const rect = Display.canvasRect();
       const ins = Display.safeInsets();
       const scale = rect.height / GAME_H;
-      const buttonsBottomCss = ins.top + 10 + Math.max(48, 58 * Math.min(1, Math.max(0.8, window.innerHeight / 400)) * Settings.get().touchSize) + 6;
+      const buttonsBottomCss = ins.top + 10 + Math.max(48, 58 * Math.min(1, Math.max(0.8, Display.viewSize().h / 400)) * Settings.get().touchSize) + 6;
       y = Math.max(4, Math.ceil((buttonsBottomCss - rect.top) / scale));
     }
     this.minimapFrame.setY(y);

@@ -128,43 +128,6 @@ body {
   animation: rotate-phone 2.4s ease-in-out infinite;
 }
 
-#rotate-hint .portrait-choice {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  margin-top: 24px;
-}
-
-#rotate-hint .portrait-btn {
-  appearance: none;
-  border: 3px solid #ffc93c;
-  border-radius: 6px;
-  background: #231c2e;
-  padding: 10px 16px;
-  cursor: pointer;
-  line-height: 0;
-}
-
-#rotate-hint .portrait-btn:active {
-  filter: brightness(1.3);
-}
-
-#rotate-hint .portrait-btn:focus-visible {
-  outline: 3px solid #fff3a0;
-  outline-offset: 3px;
-}
-
-/* Hochformat (App dreht sich nicht mit): Spiel oben, Bedienung darunter */
-body.portrait-play #app {
-  align-items: flex-start;
-  padding-top: calc(var(--safe-top) + 76px);
-}
-
-body.portrait-play #game {
-  height: auto;
-}
-
 @keyframes rotate-phone {
   0%,
   20% {

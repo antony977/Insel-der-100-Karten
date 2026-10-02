@@ -119,9 +119,11 @@ export class TouchControls {
         el.addEventListener('pointermove', (e) => {
           if (!pointers.has(e.pointerId)) return;
           const r = el.getBoundingClientRect();
-          const k = Math.max(30, r.width * 0.7);
-          const dx = (e.clientX - (r.left + r.width / 2)) / k;
-          const dy = (e.clientY - (r.top + r.height / 2)) / k;
+          const k = Math.max(30, Math.min(r.width, r.height) * 0.7);
+          // Bildschirmrichtung in Richtung der (ggf. gedrehten) Spielfläche umrechnen
+          const d = Display.toLocalDelta(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
+          const dx = d.x / k;
+          const dy = d.y / k;
           const l = Math.hypot(dx, dy);
           Input.setAuraDrag(l > 1 ? dx / l : dx, l > 1 ? dy / l : dy);
         });
@@ -145,7 +147,7 @@ export class TouchControls {
 
   private scale(): number {
     // Auf kleinen Bildschirmen etwas kleiner, aber nie unter 56 px (WCAG-Zielgrösse)
-    const h = window.innerHeight;
+    const h = Display.viewSize().h;
     const auto = Math.min(1, Math.max(0.8, h / 400));
     return auto * Settings.get().touchSize;
   }
@@ -160,8 +162,7 @@ export class TouchControls {
     const sl = ins.left;
     const sb = ins.bottom;
     const stp = ins.top;
-    const W = window.innerWidth;
-    const H = window.innerHeight;
+    const { w: W, h: H } = Display.viewSize();
 
     // A-Knopf: Mittelpunkt unten rechts (bzw. links im Linkshänder-Modus)
     const aSize = Math.max(64, 78 * s);
@@ -193,17 +194,11 @@ export class TouchControls {
       el.style.top = `${cy}px`;
     }
     // Joystick-Zone: andere Bildschirmhälfte, unterhalb der oberen Leiste
-    // (im Hochformat erst unterhalb des Spielbilds, damit Antippen im Bild frei bleibt)
     const zoneW = W * 0.48;
-    let zoneTop = Math.round(H * 0.16);
-    if (Display.portraitPlay) {
-      const canvas = document.querySelector('#game canvas');
-      if (canvas) zoneTop = Math.max(zoneTop, Math.round(canvas.getBoundingClientRect().bottom + 6));
-    }
     this.zone.style.left = left ? `${W - zoneW}px` : '0px';
     this.zone.style.width = `${zoneW}px`;
-    this.zone.style.top = `${zoneTop}px`;
-    this.zone.style.height = `${Math.max(0, H - zoneTop)}px`;
+    this.zone.style.top = `${Math.round(H * 0.16)}px`;
+    this.zone.style.height = `${H - Math.round(H * 0.16)}px`;
     const baseSize = 120 * s;
     this.base.style.width = this.base.style.height = `${baseSize}px`;
     this.knob.style.width = this.knob.style.height = `${baseSize * 0.46}px`;
@@ -223,20 +218,21 @@ export class TouchControls {
     }
     this.joyId = e.pointerId;
     const r = this.radius();
-    const W = window.innerWidth;
-    const H = window.innerHeight;
-    this.joyOX = Math.min(Math.max(e.clientX, r + 8), W - r - 8);
-    this.joyOY = Math.min(Math.max(e.clientY, r + 8), H - r - 8);
+    const { w: W, h: H } = Display.viewSize();
+    const p = Display.toLocal(e.clientX, e.clientY);
+    this.joyOX = Math.min(Math.max(p.x, r + 8), W - r - 8);
+    this.joyOY = Math.min(Math.max(p.y, r + 8), H - r - 8);
     this.base.style.left = `${this.joyOX}px`;
     this.base.style.top = `${this.joyOY}px`;
     this.base.classList.add('active');
     this.knob.classList.add('active');
-    this.updateKnob(e.clientX, e.clientY);
+    this.updateKnob(p.x, p.y);
   }
 
   private joyMove(e: PointerEvent): void {
     if (e.pointerId !== this.joyId) return;
-    this.updateKnob(e.clientX, e.clientY);
+    const p = Display.toLocal(e.clientX, e.clientY);
+    this.updateKnob(p.x, p.y);
   }
 
   private updateKnob(x: number, y: number): void {
