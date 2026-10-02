@@ -61,7 +61,9 @@ function bCards(c: DialogCtx): number[] {
   const uids: number[] = [];
   for (const h of c.g.book.hand) if (card(c.g.registry.idOf(h.uid)).rank === 'B' && card(c.g.registry.idOf(h.uid)).kind === 'sammel') uids.push(h.uid);
   for (const u of c.g.book.frei) if (u !== null && card(c.g.registry.idOf(u)).rank === 'B' && card(c.g.registry.idOf(u)).kind === 'sammel') uids.push(u);
-  return uids;
+  // Doppelte (Sammelseite schon belegt) zuerst abgeben, damit keine fehlende Karte verloren geht
+  const dup = (uid: number) => (c.g.book.sammel[card(c.g.registry.idOf(uid)).no] !== null ? 0 : 1);
+  return uids.sort((a, b) => dup(a) - dup(b));
 }
 
 const samira: DialogDef = {
@@ -133,6 +135,7 @@ const kasim: DialogDef = {
           if: (c) => bCards(c).length >= 3,
           do: (c) => {
             for (const uid of bCards(c).slice(0, 3)) {
+              c.g.markLost(c.g.registry.idOf(uid));
               c.g.book.remove(uid);
               c.g.registry.destroy(uid);
               c.g.quick = c.g.quick.map((q) => (q === uid ? null : q));

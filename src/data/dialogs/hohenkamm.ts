@@ -4,7 +4,7 @@ import { registerModule } from '../../systems/WorldModules';
 import { Game } from '../../systems/GameState';
 import { TILE } from '../../config';
 import { TOWNS } from '../world/layout';
-import { has, mini, reward, setStage, stage } from './util';
+import { has, mini, pageWarning, reward, setStage, stage } from './util';
 import { KLIPPENBALL_TEAMS } from '../minigames';
 import { PAL } from '../../gfx/palette';
 
@@ -149,6 +149,7 @@ const isgard: DialogDef = {
       say: (c) => [
         'B-b-brrr. Ich bin Isgard, der Eiswächter. Ich bewache den Gletscher – aber mir ist so k-k-kalt.',
         has(c, '090') || c.g.inv.bag.has('090') ? 'Ist das … eine Warme Wolldecke? Würdest du sie mir geben?' : 'Eine warme Wolldecke wäre ein Traum. Angeblich strickt eine Oma in Taufeld die besten.',
+        ...(c.g.inv.bag.has('090') ? [] : pageWarning(c, '090', 1)),
       ],
       do: (c) => {
         if (stage(c, 'q-frostblume') === 0) setStage(c, 'q-frostblume', 1);
@@ -158,7 +159,9 @@ const isgard: DialogDef = {
           text: 'Wolldecke geben',
           if: (c) => has(c, '090') || c.g.inv.bag.has('090'),
           do: (c) => {
-            if (!c.g.takeCards('090', 1)) c.g.inv.removeItem('090');
+            // zuerst die echte Decke aus dem Beutel, sonst eine Karte (Sammelseite zuletzt)
+            if (c.g.inv.bag.has('090')) c.g.inv.removeItem('090');
+            else c.g.takeCards('090', 1);
             setStage(c, 'q-frostblume', 2);
             reward(c, '041');
           },

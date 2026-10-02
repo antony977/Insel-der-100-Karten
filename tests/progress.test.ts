@@ -20,3 +20,20 @@ describe('Verlorene Karten', () => {
     expect(Game.lost).toContain('076');
   });
 });
+
+describe('Abgaben an Figuren', () => {
+  it('Oma Hilde strickt eine neue Decke, wenn die alte weg ist', async () => {
+    await import('../src/data/dialogs');
+    const { getDialog } = await import('../src/systems/Dialog');
+    Game.newGame();
+    Game.quests.set('q-wolle', 2);
+    const d = getDialog('hilde')!;
+    const ctx = { g: Game, w: { giveCard: (id: string) => Game.giveCard(id) !== null } } as never;
+    expect(d.start(ctx)).toBe('againWait');
+    for (let i = 0; i < 3; i++) Game.giveCard('093');
+    expect(d.start(ctx)).toBe('again');
+    d.nodes.again.choices![0].do!(ctx);
+    expect(Game.countCard('090')).toBe(1);
+    expect(d.start(ctx)).toBe('done');
+  });
+});

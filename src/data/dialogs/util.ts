@@ -6,6 +6,20 @@ import type { MiniData } from '../../scenes/mini/MiniBase';
 /** Hilfsfunktionen für Dialoge und Quests */
 export const has = (c: DialogCtx, id: string, n = 1): boolean => c.g.countCard(id) >= n;
 
+/** Würde eine Abgabe von n Karten auch das Exemplar aus den Sammelseiten kosten? */
+export function takesPage(c: DialogCtx, id: string, n: number): boolean {
+  const d = card(id);
+  if (d.kind !== 'sammel') return false;
+  const u = c.g.book.sammel[d.no];
+  const onPage = u !== null && c.g.registry.idOf(u) === id;
+  return onPage && c.g.countCard(id) - 1 < n;
+}
+
+/** Warnhinweis vor einer Abgabe (leer, wenn die Sammelseite unberührt bleibt) */
+export function pageWarning(c: DialogCtx, id: string, n: number): string[] {
+  return takesPage(c, id, n) ? [`(Achtung: Damit gibst du auch „${card(id).name}" aus deinen Sammelseiten her – Nr. ${id} fehlt dann wieder.)`] : [];
+}
+
 /** Karte geben, falls noch Exemplare existieren (sonst Trostpreis in Münzen) */
 export function reward(c: DialogCtx, id: string): boolean {
   if (c.w.giveCard(id)) return true;

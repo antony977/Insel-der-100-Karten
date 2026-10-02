@@ -365,6 +365,7 @@ export class GameStateStore {
     for (const u of this.book.frei) if (u !== null && this.registry.idOf(u) === id) uids.push(u);
     for (const u of this.book.sammel) if (u !== null && this.registry.idOf(u) === id) uids.push(u);
     for (const uid of uids.slice(0, n)) {
+      this.markLost(id);
       this.book.remove(uid);
       this.registry.destroy(uid);
       this.quick = this.quick.map((q) => (q === uid ? null : q));

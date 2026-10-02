@@ -6,6 +6,7 @@ import { Game } from '../../systems/GameState';
 import { NPC_BY_ID } from '../npcs';
 import { TOWNS } from '../world/layout';
 import { TILE } from '../../config';
+import { pageWarning } from './util';
 
 registerQuests([
   {
@@ -192,6 +193,8 @@ const hilde: DialogDef = {
     const s = c.g.quests.stage('q-wolle');
     if (s === 0) return 'ask';
     if (s === 1) return has(c, '093', 3) ? 'give' : 'wait';
+    // Decke verschenkt oder verloren? Oma Hilde strickt gern eine neue.
+    if (!c.g.hasThing('090') && c.g.registry.canCreate('090')) return has(c, '093', 3) ? 'again' : 'againWait';
     return 'done';
   },
   nodes: {
@@ -208,7 +211,7 @@ const hilde: DialogDef = {
     thanks: { say: ['Du bist ein Schatz. Drei Wollknäuel-Karten – Nummer 093. Ich warte hier.'] },
     wait: { say: (c) => [`Drei Wollknäuel-Karten, Kindchen. Du hast ${c.g.countCard('093')}. Die Wollknäuel rollen rund ums Dorf herum.`] },
     give: {
-      say: ['Oh! Du hast drei Wollknäuel dabei!'],
+      say: (c) => ['Oh! Du hast drei Wollknäuel dabei!', ...pageWarning(c, '093', 3)],
       choices: [
         {
           text: 'Hier, bitte.',
@@ -224,6 +227,21 @@ const hilde: DialogDef = {
     },
     gift: { say: ['Klick-klack, fertig! Hier ist eine Warme Wolldecke. Oben in Hohenkamm wirst du sie brauchen – dort friert sogar der Wind.'] },
     done: { say: ['Halt dich warm, Kindchen. Und iss genug!'] },
+    againWait: { say: ['Deine Decke ist weg? Ach, Kindchen. Bring mir wieder drei Wollknäuel-Karten, dann stricke ich dir eine neue.'] },
+    again: {
+      say: (c) => ['Deine Decke ist weg? Mit drei Wollknäueln stricke ich dir sofort eine neue!', ...pageWarning(c, '093', 3)],
+      choices: [
+        {
+          text: 'Hier, bitte.',
+          do: (c) => {
+            c.g.takeCards('093', 3);
+            c.w.giveCard('090');
+          },
+          goto: 'gift',
+        },
+        { text: 'Später.' },
+      ],
+    },
   },
 };
 

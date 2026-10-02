@@ -1,5 +1,6 @@
 import { registerDialogs, type Choice, type DialogCtx, type DialogDef } from '../../systems/Dialog';
 import { registerQuests } from '../../systems/Quests';
+import { pageWarning } from './util';
 
 registerQuests([
   {
@@ -232,7 +233,7 @@ const ferdinand: DialogDef = {
     },
     wait: { say: (c) => [`Zwei Blattschnapper-Karten (Nr. 076) – du hast ${c.g.countCard('076')}. Die Biester tarnen sich als Büsche, also Augen auf!`] },
     give: {
-      say: ['Zwei Blattschnapper! Wunderbar.'],
+      say: (c) => ['Zwei Blattschnapper! Wunderbar.', ...pageWarning(c, '076', 2)],
       choices: [
         {
           text: 'Bitte schön.',
