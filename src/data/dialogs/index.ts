@@ -8,6 +8,7 @@ import './sandspiegel';
 import './rosenweil';
 import './wildnis';
 import './finale';
+import './rivalen';
 
 const rastfeuer: DialogDef = {
   id: 'rastfeuer',

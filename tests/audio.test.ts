@@ -11,10 +11,12 @@ describe('Audio', () => {
       const out = new Float32Array(Math.ceil(lengthOf(tones) * RATE));
       for (const t of tones) renderTone(out, t);
       let peak = 0;
+      let finite = true;
       for (const v of out) {
-        expect(Number.isFinite(v), name).toBe(true);
-        peak = Math.max(peak, Math.abs(v));
+        if (!Number.isFinite(v)) finite = false;
+        else if (Math.abs(v) > peak) peak = Math.abs(v);
       }
+      expect(finite, name).toBe(true);
       expect(peak, name).toBeGreaterThan(0.01);
       expect(peak, name).toBeLessThan(1);
     }

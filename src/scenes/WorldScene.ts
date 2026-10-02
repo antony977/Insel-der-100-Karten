@@ -41,6 +41,7 @@ import '../data/bosses';
 import { Atmosphere, ambientFor, type Light } from '../world/Atmosphere';
 import { baseWeather, regionWeather, type BaseWeather } from '../systems/Weather';
 import { modulesFor, setWorldHost, type WorldHost, type WorldModule } from '../systems/WorldModules';
+import { npcRule } from '../systems/npcRules';
 
 /** Spiegelbild (Spiegel-Affinität): zieht Angriffe auf sich und explodiert */
 class MirrorDecoy implements Decoy {
@@ -371,10 +372,18 @@ export class WorldScene extends BaseScene {
       if (n.map !== this.loaded.id) continue;
       if (n.showIf && !Game.flags.has(n.showIf)) continue;
       if (n.hideIf && Game.flags.has(n.hideIf)) continue;
+      if (n.rule && !npcRule(n.rule)) continue;
       want.add(n.id);
     }
+    // Figuren, deren Platz sich geändert hat (Rivalen ziehen weiter), neu aufstellen
+    const placeOf = (n: (typeof NPCS)[number]) => {
+      const town = n.town ? TOWNS.find((t) => t.id === n.town) : undefined;
+      return { x: ((town ? town.x : 0) + n.x) * TILE + 8, y: ((town ? town.y : 0) + n.y) * TILE + 12 };
+    };
     for (let i = this.npcs.length - 1; i >= 0; i--) {
-      if (!want.has(this.npcs[i].def.id)) {
+      const def = NPCS.find((n) => n.id === this.npcs[i].def.id);
+      const moved = def && (Math.abs(placeOf(def).x - this.npcs[i].def.x) > 1 || Math.abs(placeOf(def).y - this.npcs[i].def.y) > 1);
+      if (!want.has(this.npcs[i].def.id) || moved) {
         this.npcs[i].destroy();
         this.npcs.splice(i, 1);
       }
@@ -1132,6 +1141,7 @@ export class WorldScene extends BaseScene {
   }
 
   private gadgetT = 0;
+  private npcSyncT = 2;
 
   /** Fernglas (Minikarte zeigt Monster und Karten) und Sternenkompass (Pfeil zur fehlenden Karte) */
   private updateGadgets(dt: number): void {
@@ -1291,6 +1301,11 @@ export class WorldScene extends BaseScene {
     this.fx.update(dt);
     this.updateRegion(dt);
     this.updateAtmosphere(dt, view);
+    this.npcSyncT -= dt;
+    if (this.npcSyncT <= 0) {
+      this.npcSyncT = 2;
+      this.syncNpcs();
+    }
     this.game.events.emit('world-update', dt, time);
     // versteckte Stellen nur mit Aura-Sinn sichtbar
     const reveal = this.player.sense || Game.inv.tools.has('linse');
