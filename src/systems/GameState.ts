@@ -262,6 +262,7 @@ export class GameStateStore {
     if (!this.book.locate(uid)) return null;
     const def = this.book.def(uid);
     if (def.kind === 'zauber') return null;
+    if (this.book.locate(uid)?.area === 'sammel') this.markLost(def.id);
     this.book.remove(uid);
     this.registry.destroy(uid);
     const msg = this.inv.materialize(def);
@@ -411,6 +412,8 @@ export class GameStateStore {
 
   /** Verlorene Karten merken (Phönixtinte kann sie wiederherstellen) */
   markLost(id: string): void {
+    const i = this.lost.indexOf(id);
+    if (i >= 0) this.lost.splice(i, 1);
     this.lost.push(id);
     if (this.lost.length > 20) this.lost.shift();
   }

@@ -537,7 +537,7 @@ export class BookScene extends BaseScene {
         const q = Game.quick.indexOf(uid);
         this.buttons.push({ label: 'Wirken', run: () => this.castNow(uid), enabled: slot.area === 'frei' });
         if (slot.area === 'frei') this.buttons.push({ label: q >= 0 ? `Taste ${q + 1}` : 'Auf Taste', run: () => this.cycleQuick(uid), enabled: true });
-      } else this.buttons.push({ label: 'Entfessle!', run: () => this.doUnleash(uid), enabled: true });
+      } else this.buttons.push({ label: 'Entfessle!', run: () => this.confirmUnleash(uid, slot.area === 'sammel'), enabled: true });
       if (slot.area === 'hand') {
         this.buttons.push({ label: 'Ablegen', run: () => this.doDrop(uid), enabled: true });
       } else {
@@ -899,6 +899,22 @@ export class BookScene extends BaseScene {
     if (r !== 'ok') this.flash(MOVE_MESSAGES[r]);
     Game.events.emit('book-changed');
     this.render();
+  }
+
+  /** Karte, für die schon einmal gewarnt wurde (zweiter Druck entfesselt) */
+  private unleashArmed: number | null = null;
+
+  /** Das einzige Exemplar einer Sammelseite erst nach einer Rückfrage entfesseln */
+  private confirmUnleash(uid: number, fromPage: boolean): void {
+    const id = Game.registry.idOf(uid);
+    if (fromPage && Game.countCard(id) === 1 && this.unleashArmed !== uid) {
+      this.unleashArmed = uid;
+      Sound.play('error');
+      this.flash('Das ist dein einziges Exemplar – die Karte verlässt dann deine Sammelseiten! Zum Bestätigen noch einmal „Entfessle!".');
+      return;
+    }
+    this.unleashArmed = null;
+    this.doUnleash(uid);
   }
 
   private doUnleash(uid: number): void {
