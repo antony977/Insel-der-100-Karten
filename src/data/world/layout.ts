@@ -493,4 +493,9 @@ export const POIS: Poi[] = [
   // Hohenkamm: Kletterwand und Bergpfad zum Gipfel
   { type: 'vineGate', x: 60, y: 30, tag: 'warp:adlerhorst' },
   { type: 'stairs', x: 98, y: 22, tag: 'warp:gipfel' },
+  // Boss-Arenen
+  { type: 'cave', x: 196, y: 180, tag: 'warp:wiesenkessel' },
+  { type: 'sign', x: 193, y: 182, text: '„Achtung! Hinter diesem Hügel schläft der Grasriese. Nicht wecken!" – Die Taufelder' },
+  { type: 'vineGate', x: 14, y: 150, tag: 'warp:rosengarten' },
+  { type: 'stairs', x: 122, y: 106, tag: 'warp:aschenhalle' },
 ];

@@ -33,7 +33,27 @@ export interface AsciiMapDef {
   seed?: number;
 }
 
-export function buildAsciiMap(def: AsciiMapDef): WorldMap {
+/** Mindestgrösse, damit die Karte den Bildschirm füllt (480×270 = 30×17 Kacheln) */
+const MIN_W = 32;
+const MIN_H = 19;
+
+export function buildAsciiMap(def0: AsciiMapDef): WorldMap {
+  // kleine Karten ringsum mit Wand auffüllen
+  const w0 = Math.max(...def0.rows.map((r) => r.length));
+  const padX = Math.max(0, Math.ceil((MIN_W - w0) / 2));
+  const padY = Math.max(0, Math.ceil((MIN_H - def0.rows.length) / 2));
+  const wall = '#'.repeat(w0 + padX * 2);
+  const rows = [
+    ...Array.from({ length: padY }, () => wall),
+    ...def0.rows.map((r) => '#'.repeat(padX) + r.padEnd(w0, '#') + '#'.repeat(padX)),
+    ...Array.from({ length: padY }, () => wall),
+  ];
+  const def: AsciiMapDef = {
+    ...def0,
+    rows,
+    start: def0.start ? [def0.start[0] + padX, def0.start[1] + padY] : undefined,
+    spawns: def0.spawns?.map((sp) => ({ ...sp, x: sp.x + padX, y: sp.y + padY })),
+  };
   const h = def.rows.length;
   const w = Math.max(...def.rows.map((r) => r.length));
   const m = new WorldMap(w, h);

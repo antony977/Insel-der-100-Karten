@@ -486,9 +486,17 @@ const GATES: Record<string, { need: string[]; text: string }> = {
   muschelgrotte: { need: ['011'], text: 'Der Eingang der Grotte liegt unter Wasser. Wer hier hinein will, muss unter Wasser atmen können.' },
 };
 
+/** Kartenwechsel, die an Spielfortschritt statt an Karten hängen */
+const PROGRESS_GATES: Record<string, { ok: () => boolean; text: string }> = {
+  aschenhalle: { ok: () => Game.flags.has('aschenhand-finale'), text: 'Eine Treppe führt in die Tiefe, doch eine Wand aus kalter Asche versperrt sie. Was immer dort unten ist – es ist noch nicht an der Zeit.' },
+  tresor: { ok: () => Game.hasThing('040') || Game.quests.done('q-kasimir'), text: 'Der Tresorraum öffnet sich nur für Gäste mit Silberner Spielmarke.' },
+};
+
 registerModule({
   id: 'tore',
   warpCheck(_h, target) {
+    const pg = PROGRESS_GATES[target];
+    if (pg && !pg.ok()) return pg.text;
     const g = GATES[target];
     if (!g) return null;
     return g.need.some((id) => Game.hasThing(id)) ? null : g.text;

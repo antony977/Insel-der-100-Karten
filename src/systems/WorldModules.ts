@@ -4,6 +4,7 @@ import type { MonsterDef } from '../data/monsters';
 import type { Enemy } from '../entities/Enemy';
 import type { EnemyManager } from './combat/EnemyManager';
 import type { FxPool } from './FxPool';
+import type { Projectiles } from './combat/Projectiles';
 
 /**
  * Schnittstelle der Welt für Quest-Module, Minispiele und Dialoge. So bleiben Inhalte
@@ -44,6 +45,9 @@ export interface WorldHost {
   syncNpcs(): void;
   /** zusätzliche Lichter (von Modulen jedes Bild neu gefüllt) */
   readonly extraLights: { x: number; y: number; radius: number; color: number; alpha?: number }[];
+  readonly projectiles: Projectiles;
+  /** Spielfigur treffen (berücksichtigt Ausweichen, Schild usw.) */
+  hurtPlayer(atk: number, fromX: number, fromY: number): number;
 }
 
 export interface WorldModule {

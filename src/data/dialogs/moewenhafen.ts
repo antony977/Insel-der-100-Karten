@@ -107,7 +107,17 @@ const marlene: DialogDef = {
         setStage(c, 'q-logbuch', 3);
       },
     },
-    fertig: { say: ['Wind aus Westen, leichte Dünung. Gute Zeiten zum Segeln – und zum Kartensammeln.'] },
+    fertig: {
+      say: (c) => [
+        c.g.flags.has('boss:tiefenmaul')
+          ? 'Seit die Krake fort ist, laufen die Fischer wieder ohne Angst aus. Wind aus Westen, leichte Dünung.'
+          : 'Wind aus Westen, leichte Dünung. Nur im Hafenbecken lauert Tiefenmaul, die Krake. Sie zieht Boote in die Tiefe!',
+      ],
+      choices: [
+        { text: 'Ich nehme es mit der Krake auf!', if: (c) => !c.g.flags.has('boss:tiefenmaul'), do: (c) => c.w.warp('hafenbecken') },
+        { text: 'Bis bald!' },
+      ],
+    },
   },
 };
 

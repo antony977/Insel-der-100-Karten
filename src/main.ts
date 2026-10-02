@@ -23,6 +23,7 @@ import { DanceScene } from './scenes/mini/DanceScene';
 import { MelodyScene } from './scenes/mini/MelodyScene';
 import { MirrorScene } from './scenes/mini/MirrorScene';
 import { KlippenballScene } from './scenes/mini/KlippenballScene';
+import { CreditsScene } from './scenes/CreditsScene';
 import { SaveSystem } from './systems/SaveSystem';
 import { Game } from './systems/GameState';
 import { Display } from './systems/Display';
@@ -70,7 +71,7 @@ const game = new Phaser.Game({
     antialiasGL: false,
     pixelArt: true,
   },
-  scene: [BootScene, TitleScene, WorldScene, HudScene, BookScene, PauseScene, SettingsScene, KeysScene, SlotsScene, DialogScene, LevelUpScene, TalkScene, ShopScene, ChoiceScene, MapScene, NewGameScene, CasinoScene, FishingScene, DanceScene, MelodyScene, MirrorScene, KlippenballScene],
+  scene: [BootScene, TitleScene, WorldScene, HudScene, BookScene, PauseScene, SettingsScene, KeysScene, SlotsScene, DialogScene, LevelUpScene, TalkScene, ShopScene, ChoiceScene, MapScene, NewGameScene, CasinoScene, FishingScene, DanceScene, MelodyScene, MirrorScene, KlippenballScene, CreditsScene],
   callbacks: {
     postBoot: (g) => {
       g.registry.set('cursorCss', cursorCss);

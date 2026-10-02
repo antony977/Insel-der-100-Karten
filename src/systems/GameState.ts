@@ -159,6 +159,34 @@ export class GameStateStore {
     this.events.emit('ground-changed');
   }
 
+  /** Aktuelle New-Game-Plus-Stufe (0 = erster Durchgang) */
+  get ngLevel(): number {
+    return this.flags.has('ng3') ? 3 : this.flags.has('ng2') ? 2 : this.flags.has('ng1') ? 1 : 0;
+  }
+
+  /**
+   * New Game+: Stufe, Affinität und Talente bleiben, Karten, Quests und Welt beginnen neu.
+   * Monster werden stärker (bis zu drei Mal).
+   */
+  newGamePlus(): void {
+    const prog = this.prog;
+    const name = this.player.name;
+    const next = Math.min(3, this.ngLevel + 1);
+    const souvenirs = [...this.flags].filter((f) => f.startsWith('souvenir:'));
+    this.newGame();
+    this.prog = prog;
+    this.player.name = name;
+    for (let i = 1; i <= next; i++) this.flags.add(`ng${i}`);
+    for (const f of souvenirs) this.flags.add(f);
+    this.flags.add('frisch');
+    this.inv.money = 500;
+    this.syncBonus();
+    const st = this.inv.stats();
+    this.inv.lp = st.lp;
+    this.inv.aura = st.aura;
+    this.events.emit('vitals-changed');
+  }
+
   /** Neue Karte erhalten (Truhe, Quest, Beute …). Landet in der Hand. */
   giveCard(id: string): number | null {
     const def = card(id);

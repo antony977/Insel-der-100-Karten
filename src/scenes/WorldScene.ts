@@ -37,6 +37,7 @@ import type { Enemy } from '../entities/Enemy';
 import { castSpell, type SpellHost } from '../systems/Spells';
 import '../data/dialogs';
 import '../data/maps/dungeons';
+import '../data/bosses';
 import { Atmosphere, ambientFor, type Light } from '../world/Atmosphere';
 import { baseWeather, regionWeather, type BaseWeather } from '../systems/Weather';
 import { modulesFor, setWorldHost, type WorldHost, type WorldModule } from '../systems/WorldModules';
@@ -232,6 +233,7 @@ export class WorldScene extends BaseScene {
     this.extraLights.length = 0;
     this.registry.set('hudTimer', null);
     this.registry.set('questTarget', null);
+    this.registry.set('bossBar', null);
     this.host = this.makeHost();
     setWorldHost(this.host);
     this.mods = modulesFor(this.loaded.id);
@@ -462,6 +464,10 @@ export class WorldScene extends BaseScene {
       after: (ms, fn) => this.time.delayedCall(ms, fn),
       syncNpcs: () => this.syncNpcs(),
       extraLights: this.extraLights,
+      get projectiles() {
+        return self.projectiles;
+      },
+      hurtPlayer: (atk, fx, fy) => this.player.takeHit(atk, fx, fy),
     };
   }
 
@@ -535,8 +541,10 @@ export class WorldScene extends BaseScene {
         if (list.length === 1) {
           const d = list[0];
           this.toast(`Karte erhalten: ${cardLabel(d)} ${d.name} (${d.rank}) – leg sie innerhalb von 60 s ins Buch!`);
-        } else {
+        } else if (list.length <= 4) {
           this.toast(`${list.length} Karten erhalten: ${list.map((d) => d.name).join(', ')} – leg sie innerhalb von 60 s ins Buch!`);
+        } else {
+          this.toast(`${list.length} Karten erhalten – leg sie innerhalb von 60 s ins Buch!`);
         }
       });
     }

@@ -65,6 +65,9 @@ export class HudScene extends BaseScene {
   private clockIcon!: Phaser.GameObjects.Image;
   private clockT = 0;
   private timerText!: Phaser.GameObjects.BitmapText;
+  private bossBg!: Phaser.GameObjects.Rectangle;
+  private bossFill!: Phaser.GameObjects.Rectangle;
+  private bossName!: Phaser.GameObjects.BitmapText;
   private msgBox!: Phaser.GameObjects.Container;
   private msgText!: Phaser.GameObjects.BitmapText;
   private msgName!: Phaser.GameObjects.BitmapText;
@@ -145,6 +148,10 @@ export class HudScene extends BaseScene {
     addPanel(this, GAME_W / 2 - 34, 4, 68, 18);
     this.add.image(GAME_W / 2 - 26, 8, 'ui-icons', 3).setOrigin(0, 0);
     this.progress = addText(this, GAME_W / 2 + 6, 7, '0/100', { font: 'px-s', ox: 0.5, color: PAL.cream });
+    // Boss-Lebensleiste (unten Mitte)
+    this.bossBg = this.add.rectangle(GAME_W / 2, GAME_H - 30, 204, 8, PAL.ink).setVisible(false);
+    this.bossFill = this.add.rectangle(GAME_W / 2 - 100, GAME_H - 30, 200, 4, PAL.red).setOrigin(0, 0.5).setVisible(false);
+    this.bossName = addText(this, GAME_W / 2, GAME_H - 46, '', { font: 'px-o', ox: 0.5, color: PAL.cream }).setVisible(false);
     this.timerText = addText(this, GAME_W / 2, 56, '', { font: 'px-o', ox: 0.5, color: PAL.gold, scale: 1 }).setVisible(false);
 
     // --- Minimap (oben rechts) ---
@@ -432,6 +439,17 @@ export class HudScene extends BaseScene {
         }
       }
       this.minimapDot.setVisible(Math.floor(time / 250) % 2 === 0);
+    }
+
+    // Boss
+    const bb = this.registry.get('bossBar') as { name: string; title: string; hp: number; max: number } | null | undefined;
+    this.bossBg.setVisible(!!bb);
+    this.bossFill.setVisible(!!bb);
+    this.bossName.setVisible(!!bb);
+    if (bb) {
+      this.bossName.setText(`${bb.name} – ${bb.title}`);
+      this.bossFill.width = Math.max(0, Math.round((200 * bb.hp) / bb.max));
+      this.bossFill.fillColor = bb.hp / bb.max < 0.5 ? PAL.orange : PAL.red;
     }
 
     // Quest-Zeitanzeige

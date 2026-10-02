@@ -591,6 +591,17 @@ export const NPCS: NpcDef[] = [
     facing: 'down',
     dialog: 'benno',
   },
+  // ------------------------------------------------------------------ Finale
+  {
+    id: 'nullpunkt',
+    name: 'Nullpunkt',
+    role: 'Spielleiter der Insel',
+    look: look({ hair: RAMPS.hairSilver, style: 'long', cloth: RAMPS.white, shirt: RAMPS.silver, pants: RAMPS.white, accent: RAMPS.gold, skin: 2, iris: PAL.gold }),
+    map: 'none',
+    x: 0,
+    y: 0,
+    dialog: 'nullpunkt',
+  },
   // ------------------------------------------------------------------ Wildnis
   {
     id: 'anton',

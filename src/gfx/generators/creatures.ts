@@ -865,6 +865,300 @@ const hydra: DrawFn = (s, P) => {
 // Verzeichnis
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Bosse (Meilenstein 7) – deutlich grösser als die Spielfigur
+// ---------------------------------------------------------------------------
+
+/** Moosbart, der Grasriese: wandelnder Grashügel mit Moosbart und Blütenkrone */
+const moosbart: DrawFn = (s, P) => {
+  const S = 56;
+  const g = S - 2;
+  const y = P.bob;
+  const feet = s.part();
+  s.ell(18 + P.step * 2, g - 2, 7, 3, 'd', feet);
+  s.ell(38 - P.step * 2, g - 2, 7, 3, 'd', feet);
+  const arms = s.part();
+  const lift = P.atk ? -12 : 0;
+  s.line(12, 30 + y, 3, 38 + y + lift, 'b', arms, 5);
+  s.line(44, 30 + y, 53, 38 + y + lift, 'b', arms, 5, true);
+  s.ell(3, 40 + y + lift, 4, 4, 'a', arms);
+  s.ell(53, 40 + y + lift, 4, 4, 'a', arms, true);
+  const body = s.part();
+  s.ell(28, 32 + y, 20, 19, 'a', body);
+  const beard = s.part();
+  s.tri(16, 30 + y, 40, 30 + y, 28, 50 + y, 'b', beard);
+  s.ell(28, 34 + y, 10, 7, 'b', beard);
+  const face = s.part();
+  s.eye(21, 23 + y, P, face, true);
+  s.eye(33, 23 + y, P, face, true);
+  s.line(18, 19 + y, 24, 21 + y, 'k', face);
+  s.line(32, 21 + y, 38, 19 + y, 'k', face);
+  if (P.atk) s.ell(27, 29 + y, 4, 2.5, 'r', face);
+  const crown = s.part();
+  for (let i = 0; i < 5; i++) {
+    const fx = 14 + i * 7;
+    s.line(fx, 16 + y, fx + (i % 2 ? 1 : -1), 9 + y, 'b', crown);
+    s.ell(fx + (i % 2 ? 1 : -1), 8 + y, 2.4, 2, 'c', crown);
+    s.px(fx + (i % 2 ? 1 : -1), 8 + y, 'y', crown);
+  }
+  if (P.special) for (let i = 0; i < 6; i++) s.px(8 + i * 8, 52 - (i % 3) * 3, 'g', body);
+};
+
+/** Der Tintenkoloss: Riese aus Tintenklecksen und Buchseiten */
+const tintenkoloss: DrawFn = (s, P) => {
+  const S = 56;
+  const g = S - 2;
+  const y = P.bob;
+  const legs = s.part();
+  s.rect(17 + P.step, g - 12, 8, 12, 'a', legs);
+  s.rect(31 - P.step, g - 12, 8, 12, 'a', legs);
+  const arms = s.part();
+  const lift = P.atk ? -10 : 0;
+  s.ell(8, 30 + y + lift, 7, 11, 'a', arms);
+  s.ell(48, 30 + y + lift, 7, 11, 'a', arms, true);
+  const body = s.part();
+  s.ell(28, 28 + y, 16, 16, 'a', body);
+  s.ell(28, 12 + y, 10, 9, 'a', body);
+  const pages = s.part();
+  s.rect(19, 24 + y, 8, 10, 'b', pages);
+  s.rect(29, 22 + y, 8, 11, 'b', pages);
+  for (let i = 0; i < 4; i++) {
+    s.line(20, 26 + y + i * 2, 25, 26 + y + i * 2, 'k', pages);
+    s.line(30, 24 + y + i * 2, 35, 24 + y + i * 2, 'k', pages);
+  }
+  const face = s.part();
+  s.ell(23, 11 + y, 2.4, 2, 'g', face);
+  s.ell(33, 11 + y, 2.4, 2, 'g', face);
+  if (P.atk || P.special) s.line(22, 17 + y, 34, 17 + y, 'g', face, 1.5);
+  // Tropfen
+  for (let i = 0; i < 4; i++) s.ell(12 + i * 11, 46 + ((P.i + i) % 3), 1.5, 2.2, 'a', body);
+};
+
+/** Tiefenmaul, die Hafenkrake: Kopf aus dem Wasser, Tentakel ringsum */
+const tiefenmaul: DrawFn = (s, P) => {
+  const S = 64;
+  const g = S - 4;
+  const y = P.bob;
+  const water = s.part();
+  s.ell(32, g - 2, 30, 5, 'c', water);
+  const arms = s.part();
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI * (0.08 + (i / 5) * 0.84);
+    const reach = P.atk ? 30 : 24;
+    const bx = 32 + Math.cos(a) * 14;
+    const tx = 32 + Math.cos(a) * reach;
+    const ty = g - 4 - Math.sin(a) * (reach * 0.9) + ((P.i + i) % 2) * 2;
+    s.line(bx, g - 6, tx, ty, 'b', arms, 3.4);
+    s.ell(tx, ty, 2.4, 2.4, 'b', arms);
+  }
+  const head = s.part();
+  s.ell(32, 26 + y, 17, 20, 'a', head);
+  s.ell(26, 16 + y, 5, 4, 'b', head);
+  const face = s.part();
+  s.eye(24, 30 + y, P, face, true);
+  s.eye(40, 30 + y, P, face, true);
+  s.ell(32, 40 + y, P.atk ? 6 : 4, P.atk ? 4 : 2, 'r', face);
+  for (let i = 0; i < 5; i++) s.px(22 + i * 5, 46 + y, 'b', face);
+};
+
+/** Der Hausbankier: lebender Glücksautomat mit Zylinder und Hebelarm */
+const hausbankier: DrawFn = (s, P) => {
+  const S = 48;
+  const g = S - 2;
+  const y = P.bob;
+  const legs = s.part();
+  s.rect(14 + P.step, g - 7, 5, 7, 'd', legs);
+  s.rect(29 - P.step, g - 7, 5, 7, 'd', legs);
+  const lever = s.part();
+  const pull = P.atk ? 8 : 0;
+  s.line(40, 22 + y, 45, 10 + y + pull, 'c', lever, 2);
+  s.ell(45, 9 + y + pull, 3, 3, 'r', lever);
+  const body = s.part();
+  s.rect(6, 12 + y, 34, 28, 'a', body);
+  s.rect(8, 36 + y, 30, 4, 'b', body);
+  const reels = s.part();
+  for (let i = 0; i < 3; i++) {
+    s.rect(9 + i * 10, 18 + y, 8, 10, 'w', reels);
+    const sym = (P.i + i) % 3;
+    if (sym === 0) s.ell(13 + i * 10, 23 + y, 2, 2, 'r', reels);
+    else if (sym === 1) s.tri(13 + i * 10, 20 + y, 10 + i * 10, 26 + y, 16 + i * 10, 26 + y, 'y', reels);
+    else s.rect(11 + i * 10, 21 + y, 4, 4, 'g', reels);
+  }
+  const hat = s.part();
+  s.rect(12, 2 + y, 22, 9, 'd', hat);
+  s.rect(9, 10 + y, 28, 2, 'd', hat);
+  s.rect(12, 7 + y, 22, 2, 'r', hat);
+  const face = s.part();
+  s.eye(16, 32 + y, P, face);
+  s.eye(30, 32 + y, P, face);
+  if (P.atk) s.rect(19, 34 + y, 8, 2, 'k', face);
+};
+
+/** Sturmgreif Kragor: Adlerkopf, Löwenleib, ausgebreitete Schwingen */
+const kragor: DrawFn = (s, P) => {
+  const S = 64;
+  const g = S - 2;
+  const y = P.bob * 1.5;
+  const flap = P.i % 2 ? 6 : -4;
+  const wings = s.part();
+  s.tri(30, 26 + y, 4, 6 + y + flap, 18, 34 + y, 'c', wings);
+  s.tri(36, 26 + y, 62, 4 + y + flap, 48, 34 + y, 'c', wings, true);
+  for (let i = 0; i < 4; i++) {
+    s.line(8 + i * 4, 10 + i * 4 + y + flap, 24, 30 + y, 'b', wings);
+    s.line(58 - i * 4, 8 + i * 4 + y + flap, 42, 30 + y, 'b', wings, 1, true);
+  }
+  const legs = s.part();
+  s.rect(22 + P.step, 44 + y, 5, g - 44 - y, 'a', legs);
+  s.rect(38 - P.step, 44 + y, 5, g - 44 - y, 'a', legs);
+  s.rect(21 + P.step, g - 2, 7, 2, 'y', legs);
+  s.rect(37 - P.step, g - 2, 7, 2, 'y', legs);
+  const body = s.part();
+  s.ell(33, 40 + y, 15, 11, 'a', body);
+  s.line(48, 40 + y, 58, 46 + y, 'a', body, 2);
+  s.ell(59, 47 + y, 2.5, 2.5, 'b', body);
+  const head = s.part();
+  s.ell(24, 22 + y, 8, 8, 'b', head);
+  s.tri(16, 20 + y, 9, 25 + y, 17, 26 + y, 'y', head);
+  s.eye(21, 20 + y, P, head);
+  if (P.special) for (let i = 0; i < 4; i++) s.line(40 + i * 5, 10, 38 + i * 5, 18, 'g', wings);
+};
+
+/** Die Nebelmutter: Geistergestalt aus Nebelschleiern mit Laternenaugen */
+const nebelmutter: DrawFn = (s, P) => {
+  const y = P.bob * 1.5 - 2;
+  const robe = s.part();
+  s.tri(28, 12 + y, 6, 52, 50, 52, 'a', robe);
+  for (let i = 0; i < 5; i++) s.ell(9 + i * 9.5, 50 + ((P.i + i) % 2), 5, 3, 'a', robe);
+  const hair = s.part();
+  s.ell(28, 14 + y, 11, 12, 'b', hair);
+  s.tri(17, 14 + y, 8, 40 + y, 20, 30 + y, 'b', hair);
+  s.tri(39, 14 + y, 48, 40 + y, 36, 30 + y, 'b', hair, true);
+  const face = s.part();
+  s.ell(28, 16 + y, 6, 7, 'w', face);
+  s.ell(25.5, 15 + y, 1.6, 1.8, 'g', face);
+  s.ell(30.5, 15 + y, 1.6, 1.8, 'g', face);
+  const arms = s.part();
+  const reach = P.atk ? 8 : 0;
+  s.line(18, 26 + y, 6 - reach, 34 + y, 'a', arms, 2.4);
+  s.line(38, 26 + y, 50 + reach, 34 + y, 'a', arms, 2.4, true);
+  const lantern = s.part();
+  s.ell(5 - reach, 37 + y, 3, 4, 'g', lantern);
+};
+
+/** Der Dornenbaron: Ritter aus Dornenranken mit Rosenwappen */
+const dornenbaron: DrawFn = (s, P) => {
+  const S = 48;
+  const g = S - 2;
+  const y = P.bob;
+  const legs = s.part();
+  s.rect(17 + P.step, g - 10, 5, 10, 'b', legs);
+  s.rect(27 - P.step, g - 10, 5, 10, 'b', legs);
+  const sword = s.part();
+  const sw = P.atk ? -10 : 0;
+  s.line(36, 30 + y, 46, 14 + y + sw, 'a', sword, 2.4);
+  for (let i = 0; i < 4; i++) s.px(38 + i * 2, 26 + y - i * 3 + sw * (i / 4), 'w', sword);
+  const body = s.part();
+  s.ell(24, 28 + y, 11, 12, 'a', body);
+  s.rect(15, 26 + y, 18, 4, 'b', body);
+  const rose = s.part();
+  s.ell(24, 28 + y, 4, 4, 'c', rose);
+  s.px(24, 28 + y, 'R', rose);
+  const head = s.part();
+  s.ell(24, 13 + y, 7, 7, 'b', head);
+  s.rect(19, 12 + y, 10, 2, 'k', head);
+  s.px(21, 12 + y, 'g', head);
+  s.px(27, 12 + y, 'g', head);
+  for (let i = 0; i < 5; i++) s.tri(18 + i * 3, 7 + y, 19 + i * 3, 2 + y, 20 + i * 3, 7 + y, 'a', head);
+  // Dornen rundum
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    s.px(24 + Math.cos(a) * 12, 28 + y + Math.sin(a) * 13, 'w', body);
+  }
+};
+
+/** Der Leere Leser: gesichtslose Gestalt mit riesigem, offenem Buch */
+const leser: DrawFn = (s, P) => {
+  const y = P.bob * 1.5 - 1;
+  const robe = s.part();
+  s.tri(28, 10 + y, 8, 54, 48, 54, 'a', robe);
+  const hood = s.part();
+  s.ell(28, 13 + y, 10, 11, 'a', hood);
+  const face = s.part();
+  s.ell(28, 15 + y, 6, 7, 'w', face);
+  if (P.atk || P.special) {
+    s.line(24, 15 + y, 26, 15 + y, 'g', face);
+    s.line(30, 15 + y, 32, 15 + y, 'g', face);
+  }
+  const book = s.part();
+  const open = P.atk ? 3 : 0;
+  s.tri(28, 30 + y, 12 - open, 26 + y, 14 - open, 40 + y, 'b', book);
+  s.tri(28, 30 + y, 44 + open, 26 + y, 42 + open, 40 + y, 'b', book, true);
+  s.rect(27, 28 + y, 2, 12, 'c', book);
+  for (let i = 0; i < 3; i++) {
+    s.line(16, 30 + y + i * 3, 25, 32 + y + i * 3, 'k', book);
+    s.line(31, 32 + y + i * 3, 40, 30 + y + i * 3, 'k', book);
+  }
+  const pages = s.part();
+  for (let i = 0; i < 3; i++) {
+    const px = 10 + ((P.i * 7 + i * 17) % 36);
+    const py = 6 + ((P.i * 5 + i * 11) % 14);
+    s.rect(px, py, 4, 5, 'b', pages);
+  }
+};
+
+/** Varga Aschenherz: Anführerin der Aschenhand, Mantel aus Asche */
+const varga: DrawFn = (s, P) => {
+  const S = 40;
+  const g = S - 2;
+  const y = P.bob;
+  const cape = s.part();
+  s.tri(20, 12 + y, 6, g - 2, 34, g - 2, 'b', cape);
+  const legs = s.part();
+  s.rect(15 + P.step, g - 8, 4, 8, 'd', legs);
+  s.rect(22 - P.step, g - 8, 4, 8, 'd', legs);
+  const body = s.part();
+  s.rect(13, 16 + y, 14, 14, 'a', body);
+  s.rect(13, 25 + y, 14, 2, 'c', body);
+  const arm = s.part();
+  const cast = P.atk || P.special ? -8 : 0;
+  s.line(26, 18 + y, 33, 24 + y + cast, 'a', arm, 2.4);
+  if (P.atk || P.special) s.ell(34, 22 + y + cast, 3, 3, 'g', arm);
+  s.line(14, 18 + y, 9, 26 + y, 'a', arm, 2.4);
+  const head = s.part();
+  s.ell(20, 10 + y, 6, 6, 'w', head);
+  const hair = s.part();
+  s.ell(20, 7 + y, 7, 4, 'c', hair);
+  s.tri(13, 7 + y, 10, 20 + y, 16, 12 + y, 'c', hair);
+  s.tri(27, 7 + y, 30, 20 + y, 24, 12 + y, 'c', hair);
+  const face = s.part();
+  s.px(18, 10 + y, 'r', face);
+  s.px(22, 10 + y, 'r', face);
+};
+
+/** Handlanger der Aschenhand (Grell, Vesper, Nox) */
+const henchman: DrawFn = (s, P) => {
+  const g = 26;
+  const y = P.bob;
+  const legs = s.part();
+  s.rect(9 + P.step, g - 6, 3, 6, 'd', legs);
+  s.rect(14 - P.step, g - 6, 3, 6, 'd', legs);
+  const body = s.part();
+  s.rect(8, 11 + y, 10, 10, 'a', body);
+  s.rect(8, 17 + y, 10, 2, 'c', body);
+  const arm = s.part();
+  const hit = P.atk ? -5 : 0;
+  s.line(17, 13 + y, 22, 17 + y + hit, 'a', arm, 2);
+  s.line(9, 13 + y, 5, 18 + y, 'a', arm, 2);
+  const head = s.part();
+  s.ell(13, 7 + y, 4.5, 4.5, 'w', head);
+  const mask = s.part();
+  s.rect(9, 6 + y, 9, 2, 'b', mask);
+  s.px(11, 7 + y, 'g', mask);
+  s.px(15, 7 + y, 'g', mask);
+  const hood = s.part();
+  s.ell(13, 4 + y, 5, 3, 'b', hood);
+};
+
 /** Strohpuppe für das Training in Hohenkamm */
 const strawman: DrawFn = (s, P) => {
   const wob = P.hurt ? 1 : 0;
@@ -901,6 +1195,18 @@ export const SPECIES: Record<string, SpeciesGfx> = {
   moosgolem: { size: 32, draw: golem(32, true), m: mats(R.grey, R.green, R.gold, PAL.lime) },
   kaktuskrieger: { size: 24, draw: cactus, m: mats(R.green, R.pink) },
   strohpuppe: { size: 24, draw: strawman, m: mats(R.sand, R.wood, R.red) },
+  moosbart: { size: 56, draw: moosbart, m: mats(R.green, R.lime, R.pink, PAL.lime) },
+  tintenkoloss: { size: 56, draw: tintenkoloss, m: mats(R.ink, R.paper, R.violet, PAL.violet) },
+  tiefenmaul: { size: 64, draw: tiefenmaul, m: mats(R.violet, R.pink, R.sky, PAL.cyan) },
+  hausbankier: { size: 48, draw: hausbankier, m: mats(R.red, R.gold, R.silver, PAL.lime) },
+  kragor: { size: 64, draw: kragor, m: mats(R.sand, R.white, R.sky, PAL.cyan) },
+  nebelmutter: { size: 56, draw: nebelmutter, m: mats(R.ice, R.silver, R.teal, PAL.cyan) },
+  dornenbaron: { size: 48, draw: dornenbaron, m: mats(R.green, R.dark, R.red, PAL.red) },
+  leser: { size: 56, draw: leser, m: mats(R.ink, R.paper, R.violet, PAL.violet) },
+  varga: { size: 40, draw: varga, m: mats(R.dark, R.red, R.silver, PAL.orange) },
+  grell: { size: 28, draw: henchman, m: mats(R.leather, R.dark, R.red, PAL.orange) },
+  vesper: { size: 28, draw: henchman, m: mats(R.violet, R.dark, R.silver, PAL.violet) },
+  nox: { size: 28, draw: henchman, m: mats(R.navy, R.dark, R.grey, PAL.cyan) },
   kartensoldat: { size: 24, draw: cardSoldier, m: mats(R.red, R.white, R.wood) },
   quallenlicht: { size: 16, draw: jelly, m: mats(R.pink, R.ice, R.gold, PAL.cream) },
   irrlicht: { size: 16, draw: wisp, m: mats(R.ice, R.teal) },

@@ -281,6 +281,12 @@ export class EnemyManager {
       }
     }
 
+    // Bosse werden vom Boss-System gesteuert
+    if (d.special?.boss) {
+      e.kbx = e.kby = 0;
+      return;
+    }
+
     // Rückstoss
     if (Math.abs(e.kbx) + Math.abs(e.kby) > 1) {
       this.move(e, e.kbx * dt, e.kby * dt);
@@ -840,7 +846,7 @@ export class EnemyManager {
     if (hit.crit) this.w.fx.spawn('crit', tx, ty, { depth: 150500 });
     this.w.fx.spawn('impact', tx + (Math.random() - 0.5) * 6, ty + 4, { scale: hit.crit ? 0.9 : 0.6, tint: hit.crit ? PAL.gold : undefined });
     // Rückstoss (schwere Monster weniger)
-    const weight = d.special?.mini ? 0.15 : Math.max(0.35, 1.2 - d.radius / 14);
+    const weight = d.special?.boss ? 0 : d.special?.mini ? 0.15 : Math.max(0.35, 1.2 - d.radius / 14);
     const dx = e.x - o.fromX;
     const dy = e.y - o.fromY;
     const dl = Math.max(1, Math.hypot(dx, dy));
@@ -852,6 +858,7 @@ export class EnemyManager {
       this.kill(e, false);
       return true;
     }
+    if (d.special?.boss) return true;
     const b = d.behavior;
     if (!d.special?.mini && e.state !== 'attack' && e.state !== 'stunned' && e.rootT <= 0) {
       if (b.includes('passive')) this.setState(e, 'flee');

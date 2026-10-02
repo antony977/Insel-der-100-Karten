@@ -103,8 +103,15 @@ const fortuna: DialogDef = {
       say: ['Kuno hat sich verplappert – „mein eigener Glückswürfel"! Und tatsächlich: In seiner Tasche klappert ein gezinkter Würfel. Der gehört jetzt dir. Gut gemacht, Detektiv!'],
     },
     tresor: {
-      say: ['Das ist der Tresorraum des Hausbankiers. Niemand geht dort hinein … und wer es doch tut, kommt meist ohne Chips wieder heraus.'],
-      goto: 'a',
+      say: (c) => [
+        c.g.flags.has('boss:hausbankier')
+          ? 'Der Tresorraum steht offen, seit du den Hausbankier besiegt hast. Das Casino gehört jetzt wieder den Gästen!'
+          : 'Das ist der Tresorraum des Hausbankiers – eines lebenden Glücksautomaten. Hinein darf nur, wer eine Silberne Spielmarke besitzt.',
+      ],
+      choices: [
+        { text: 'Den Tresorraum betreten', if: (c) => !c.g.flags.has('boss:hausbankier'), do: (c) => c.w.warp('tresor') },
+        { text: 'Zurück', goto: 'a' },
+      ],
     },
   },
 };

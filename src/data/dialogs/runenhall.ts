@@ -94,7 +94,16 @@ const seraphine: DialogDef = {
       },
     },
     member: {
-      say: ['Willkommen, Siegelträger. Im Zauberladen bekommst du nun Rabatt. Und denk daran: Schutzzauber sind die besten Freunde eines Sammlers.'],
+      say: (c) => [
+        'Willkommen, Siegelträger. Im Zauberladen bekommst du nun Rabatt. Und denk daran: Schutzzauber sind die besten Freunde eines Sammlers.',
+        c.g.flags.has('boss:tintenkoloss')
+          ? 'Seit du den Tintenkoloss besiegt hast, ist die oberste Etage wieder ruhig. Danke!'
+          : 'Eine Bitte noch: In der obersten Etage des Turms ist ein Tintenkoloss erwacht. Nur wer stark genug ist, sollte hinaufsteigen.',
+      ],
+      choices: [
+        { text: 'Den Turm hinaufsteigen', if: (c) => !c.g.flags.has('boss:tintenkoloss'), do: (c) => c.w.warp('gildenturm') },
+        { text: 'Bis bald.' },
+      ],
     },
   },
 };

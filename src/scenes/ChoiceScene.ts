@@ -42,7 +42,7 @@ export class ChoiceScene extends BaseScene {
     this.setupCamera();
     Input.setContext('menu');
     this.data0 = data;
-    this.sel = 0;
+    this.sel = Math.max(0, data.options.findIndex((o) => !o.disabled));
     this.scroll = 0;
     this.dyn = [];
     this.openedAt = this.time.now;

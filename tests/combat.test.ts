@@ -16,11 +16,12 @@ describe('Monster-Daten', () => {
       expect(SPECIES[m.sprite], m.id).toBeDefined();
       if (!m.card) continue; // Trainingspuppen o. ä.
       const c = card(m.card);
-      expect(c.type, m.id).toBe('Monster');
+      // Bosse hinterlassen ihre Schatzkarte, alle anderen sich selbst als Monsterkarte
+      if (!m.special?.boss) expect(c.type, m.id).toBe('Monster');
     }
   });
   it('alle 35 Monsterkarten sind durch Monster erreichbar', () => {
-    const cards = new Set(MONSTERS.filter((m) => m.card).map((m) => m.card));
+    const cards = new Set(MONSTERS.filter((m) => m.card && !m.special?.boss).map((m) => m.card));
     expect(cards.size).toBe(35);
   });
   it('Erfahrungskurve steigt', () => {

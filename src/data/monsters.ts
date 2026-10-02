@@ -83,6 +83,8 @@ export interface MonsterDef {
     stealChips?: boolean;
     /** Mini-Boss */
     mini?: boolean;
+    /** Boss: Bewegung und Angriffe steuert das Boss-System */
+    boss?: boolean;
   };
   /** Flavour für das Bestiarium */
   text: string;
@@ -136,6 +138,20 @@ export const MONSTERS: MonsterDef[] = [
   m({ id: 'seitenfresser', name: 'Seitenfresser', card: '049', sprite: 'seitenfresser', level: 24, hp: 160, atk: 30, def: 7, speed: 56, xp: 70, money: [20, 40], behavior: ['melee', 'wander'], aggro: 110, reach: 15, radius: 9, drop: 0.25, special: { eatsCards: true }, text: 'Frisst Karten aus freien Slots, wenn er dich erwischt!' }),
   m({ id: 'tintenschatten', name: 'Tintenschatten', card: '050', sprite: 'tintenschatten', level: 25, hp: 130, atk: 32, def: 5, speed: 60, xp: 72, money: [20, 40], behavior: ['flyer', 'ranged', 'teleport'], aggro: 140, reach: 0, radius: 9, drop: 0.25, ranged: { proj: 'ink', speed: 130, cooldown: 2, count: 3, spread: 0.5, range: 150 }, text: 'Schatten aus verlaufener Tinte. Taucht hier und dort auf.' }),
   m({ id: 'kartensoldat', name: 'Kartensoldat', card: '059', sprite: 'kartensoldat', level: 24, hp: 150, atk: 30, def: 8, speed: 48, xp: 64, money: [18, 36], behavior: ['pack', 'melee', 'charge'], aggro: 120, reach: 18, radius: 9, drop: 0.3, text: 'Marschiert in Formation. Die Lanze sticht weit.' }),
+  // ------------------------------------------------------------ Bosse (Steuerung: systems/combat/BossFight.ts)
+  m({ id: 'moosbart', name: 'Moosbart', card: '022', sprite: 'moosbart', level: 8, hp: 900, atk: 18, def: 4, speed: 34, xp: 400, money: [200, 260], behavior: [], aggro: 999, reach: 26, radius: 20, drop: 1, special: { boss: true }, text: 'Der Grasriese des Taufelds.' }),
+  m({ id: 'tintenkoloss', name: 'Tintenkoloss', card: '009', sprite: 'tintenkoloss', level: 14, hp: 1500, atk: 24, def: 6, speed: 30, xp: 800, money: [300, 400], behavior: [], aggro: 999, reach: 26, radius: 20, drop: 1, special: { boss: true }, text: 'Ein Riese aus Tinte und Seiten.' }),
+  m({ id: 'tiefenmaul', name: 'Tiefenmaul', card: '011', sprite: 'tiefenmaul', level: 16, hp: 1700, atk: 26, def: 6, speed: 0, xp: 900, money: [300, 420], behavior: [], aggro: 999, reach: 30, radius: 24, drop: 1, special: { boss: true }, text: 'Die Krake im Hafenbecken.' }),
+  m({ id: 'hausbankier', name: 'Hausbankier', card: '013', sprite: 'hausbankier', level: 15, hp: 1600, atk: 25, def: 8, speed: 44, xp: 850, money: [500, 700], behavior: [], aggro: 999, reach: 22, radius: 18, drop: 1, special: { boss: true }, text: 'Der lebende Glücksautomat im Tresorraum.' }),
+  m({ id: 'kragor', name: 'Sturmgreif Kragor', card: '007', sprite: 'kragor', level: 20, hp: 2200, atk: 32, def: 8, speed: 70, xp: 1200, money: [400, 600], behavior: [], aggro: 999, reach: 26, radius: 22, drop: 1, special: { boss: true }, text: 'Herr der Gipfelstürme.' }),
+  m({ id: 'nebelmutter', name: 'Nebelmutter', card: '003', sprite: 'nebelmutter', level: 22, hp: 2400, atk: 34, def: 8, speed: 40, xp: 1400, money: [400, 600], behavior: [], aggro: 999, reach: 24, radius: 20, drop: 1, special: { boss: true }, text: 'Die Seele des Nebelhains.' }),
+  m({ id: 'dornenbaron', name: 'Dornenbaron', card: '012', sprite: 'dornenbaron', level: 21, hp: 2300, atk: 33, def: 10, speed: 54, xp: 1300, money: [400, 600], behavior: [], aggro: 999, reach: 22, radius: 16, drop: 1, special: { boss: true }, text: 'Ritter der wilden Rosenhecken.' }),
+  m({ id: 'leser', name: 'Der Leere Leser', card: '000', sprite: 'leser', level: 28, hp: 3600, atk: 40, def: 10, speed: 40, xp: 2500, money: [800, 1000], behavior: [], aggro: 999, reach: 24, radius: 20, drop: 1, special: { boss: true }, text: 'Er liest alle Geschichten – und lässt nur leere Seiten zurück.' }),
+  m({ id: 'varga', name: 'Varga Aschenherz', card: '025', sprite: 'varga', level: 26, hp: 3000, atk: 38, def: 9, speed: 60, xp: 2000, money: [600, 800], behavior: [], aggro: 999, reach: 20, radius: 12, drop: 1, special: { boss: true }, text: 'Anführerin der Aschenhand.' }),
+  // ------------------------------------------------------------ Aschenhand (Rivalen-Duelle, keine Karte)
+  m({ id: 'grell', name: 'Grell', card: '', sprite: 'grell', level: 14, hp: 600, atk: 26, def: 6, speed: 70, xp: 300, money: [100, 160], behavior: ['melee', 'charge'], aggro: 200, reach: 16, radius: 9, drop: 0, special: { mini: true }, text: 'Schläger der Aschenhand.' }),
+  m({ id: 'vesper', name: 'Vesper', card: '', sprite: 'vesper', level: 16, hp: 520, atk: 24, def: 5, speed: 64, xp: 320, money: [100, 160], behavior: ['ranged', 'teleport'], aggro: 200, reach: 0, radius: 9, drop: 0, ranged: { proj: 'orb', speed: 140, cooldown: 1.6, count: 3, spread: 0.5, range: 170 }, special: { mini: true }, text: 'Spionin der Aschenhand.' }),
+  m({ id: 'nox', name: 'Nox', card: '', sprite: 'nox', level: 18, hp: 560, atk: 22, def: 5, speed: 96, xp: 340, money: [100, 160], behavior: ['thief', 'melee', 'flee'], aggro: 200, reach: 14, radius: 9, drop: 0, special: { mini: true, eatsCards: true }, text: 'Dieb der Aschenhand.' }),
   // ------------------------------------------------------------ Training (keine Karte)
   m({ id: 'strohpuppe', name: 'Strohpuppe', card: '', sprite: 'strohpuppe', level: 1, hp: 30, atk: 0, def: 0, speed: 0, xp: 2, money: [0, 0], behavior: ['passive'], aggro: 0, reach: 0, radius: 8, drop: 0, text: 'Trainingspuppe aus Stroh.' }),
 ];

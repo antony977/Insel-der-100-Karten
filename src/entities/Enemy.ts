@@ -166,7 +166,7 @@ export class Enemy {
     else if (revealSense && hiddenLook) this.sprite.setTint(Math.floor(time / 200) % 2 ? PAL.violet : PAL.pink);
     else this.sprite.clearTint();
     // Lebensbalken nach Treffern
-    const showBar = this.barT > 0 && this.hp > 0;
+    const showBar = this.barT > 0 && this.hp > 0 && !this.def.special?.boss;
     this.barBg.setVisible(showBar);
     this.barFill.setVisible(showBar);
     if (showBar) {
