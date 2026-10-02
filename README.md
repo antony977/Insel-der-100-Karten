@@ -101,6 +101,9 @@ Der Workflow `.github/workflows/deploy.yml` baut das Spiel und veröffentlicht e
   läuft er ab, verwandelt sich die Karte **dauerhaft** in ihren Gegenstand. Auf den Boden gefallene
   Karten blinken in den letzten 10 Sekunden.
 - **Limit:** Jede Karte gibt es auf der Insel nur begrenzt oft. Ist das Limit erreicht, gibt es keine neue.
+- **Verlorene Karten** (verwandelt, verfallen, beim Zusammenbruch verloren oder geraubt) merkt sich
+  das Buch. Der seltene Zauber **Phönixtinte** stellt eine davon wieder her – bevorzugt eine, die im
+  Sammelbuch noch fehlt. So bleiben auch Einzelkarten von Bossen und Quests erreichbar.
 - **„Entfessle!":** verwandelt eine Karte in den echten Gegenstand (Trank, Ausrüstung, Werkzeug …).
   Gegenstände liegen im **Beutel**; Ausrüstung verändert die Werte im **Status**.
 - **Zauberkarten** passen nur in freie Slots und werden im Buch über „Wirken" eingesetzt (oder per Schnelltaste).
@@ -111,6 +114,9 @@ Der Workflow `.github/workflows/deploy.yml` baut das Spiel und veröffentlicht e
 - **Neues Spiel:** kurzes Intro, Name, Wahl der Aura-Affinität (Wurzel, Strömung, Echo, Faden,
   Spiegel) und ein eigener Name für die Spezialtechnik.
 - **Start am Ersten Tor in Taufeld.** Lumi erklärt alles und schenkt dir die ersten Karten.
+  Danach führt dich die Startquest: Karten einordnen → noch einmal mit Lumi sprechen → rund um
+  Taufeld Stufe 3 erreichen → einem blauen Pfeil nach Runenhall folgen. Neue und erfüllte
+  Aufgaben werden oben eingeblendet.
 - **Sieben Städte**, jede mit eigenen Figuren, Läden und Quests:
   - **Taufeld** – Krämerin, Gasthof, Oma Hilde (Wolle), Bauer Korbinian (Glocke), Wunschbrunnen.
   - **Runenhall** – Orden der Siegel (Prüfung, Gildenturm), Bibliothek (Rätsel), Zauberladen
@@ -145,6 +151,7 @@ Der Workflow `.github/workflows/deploy.yml` baut das Spiel und veröffentlicht e
 - **Finale:** Sind alle 100 Sammelseiten gefüllt, leuchtet das Erste Tor. Spielleiter Nullpunkt
   lässt dich drei Karten für die echte Welt wählen – danach Abspann und **New Game+**
   (Stufe und Talente bleiben, Monster werden stärker).
+- **Eingänge:** Höhlen und Treppen betrittst du einfach durch Hineinlaufen (oder mit der Aktionstaste).
 - **Rastfeuer:** ausruhen (heilt, speichert, Wiederaufwach-Punkt). **Stadtbrunnen:** Ziel für
   Brunnensprung; der Brunnen in Taufeld ist ein Wunschbrunnen.
 - **Weltkarte (M):** zeigt nur, was du schon erkundet hast (die Kartografenfeder deckt alles auf).
