@@ -341,15 +341,17 @@ registerModule({
       const lumi = NPC_BY_ID.lumi;
       want = townPos(lumi.town ?? 'taufeld', lumi.x, lumi.y);
     } else if (stage === 3) want = townPos('runenhall');
+    // den Pfeil anderer Aufgaben weder überschreiben noch löschen
+    const cur = h.scene.registry.get('questTarget') as [number, number] | null | undefined;
+    const same = (a: [number, number] | null | undefined, b: [number, number] | null) => !!a && !!b && a[0] === b[0] && a[1] === b[1];
+    const mine = !cur || same(cur, guide);
     if (want) {
-      // einen Pfeil anderer Aufgaben nicht überschreiben
-      if (!guide && h.scene.registry.get('questTarget')) return;
-      if (guide && guide[0] === want[0] && guide[1] === want[1]) return;
+      if (!mine || same(cur, want)) return;
       guide = want;
       h.setTarget(want[0], want[1]);
     } else if (guide) {
+      if (cur && mine) h.setTarget(null);
       guide = null;
-      h.setTarget(null);
     }
   },
 });
