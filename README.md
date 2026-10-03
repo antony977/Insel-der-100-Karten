@@ -113,9 +113,11 @@ Der Workflow `.github/workflows/deploy.yml` baut das Spiel und veröffentlicht e
 
 - **Neues Spiel:** kurzes Intro, Name, Wahl der Aura-Affinität (Wurzel, Strömung, Echo, Faden,
   Spiegel) und ein eigener Name für die Spezialtechnik.
-- **Anleitung „Erste Schritte“:** Beim ersten Betreten der Insel erklären sieben bebilderte Seiten
-  Ziel, Steuerung (passend zu Tastatur, Touch oder Gamepad), die 60-Sekunden-Regel, das Kartenbuch,
-  Kampf und Aura sowie Rasten und Speichern. Später jederzeit im Pausenmenü unter „Anleitung“.
+- **Anleitung „Erste Schritte“:** Beim ersten Betreten der Insel erklären neun bebilderte Seiten
+  Ziel, Spielablauf (woher Karten kommen), Steuerung (passend zu Tastatur, Touch oder Gamepad), die
+  60-Sekunden-Regel, das Kartenbuch, Kampf und Aura, Rasten und Speichern und mit einer kleinen
+  Inselkarte, wohin man am Anfang geht (erledigte Schritte werden abgehakt). Später jederzeit im
+  Pausenmenü unter „Anleitung“.
 - **Start am Ersten Tor in Taufeld.** Lumi erklärt alles und schenkt dir die ersten Karten.
   Danach führt dich die Startquest: Karten einordnen → noch einmal mit Lumi sprechen → rund um
   Taufeld Stufe 3 erreichen → einem blauen Pfeil nach Runenhall folgen. Neue und erfüllte

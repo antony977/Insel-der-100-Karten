@@ -14,6 +14,7 @@ import { Settings } from '../systems/Settings';
 import { Game } from '../systems/GameState';
 import { HUD_EVENTS } from './HudScene';
 import { SaveSystem } from '../systems/SaveSystem';
+import { ISLAND_ASCII, REGION_CHAR, TOWNS } from '../data/world/layout';
 
 /**
  * Anleitung „Erste Schritte": erscheint beim ersten Betreten der Insel und ist danach
@@ -30,6 +31,8 @@ interface Page {
   /** Absätze – oder Tabelle „Taste → Aktion" für die Steuerung */
   text: () => string[];
   rows?: () => [string, string][];
+  /** nummerierte Schritte (erledigte bekommen ein Häkchen) */
+  steps?: () => { text: string; done: boolean }[];
 }
 
 const PX = 20;
@@ -88,6 +91,56 @@ function bookKey(): string {
   return `mit der Taste ${keyLabel(Settings.get().bindings.book[0] ?? 'KeyB')}`;
 }
 
+/** Farben der Regionen für die kleine Inselkarte */
+const REGION_COLOR: Record<string, number> = {
+  meer: PAL.navy,
+  silbersee: PAL.sky,
+  taufeld: PAL.grass,
+  windhalm: PAL.lime,
+  runenhall: PAL.leaf,
+  moewenhafen: PAL.sand,
+  klippen: PAL.mist,
+  wuerfelheim: PAL.orange,
+  hohenkamm: PAL.silver,
+  sandspiegel: PAL.sandLight,
+  nebelhain: PAL.teal,
+  rosenweil: PAL.pink,
+  ruinen: PAL.tan,
+};
+
+/** Kleine Inselkarte (3 Pixel je Kartenfeld) mit Start, Weg nach Runenhall und den Städten */
+function drawIslandMap(s: GuideScene, cx: number, cy: number): void {
+  const c = 3;
+  const w = ISLAND_ASCII[0].length * c;
+  const h = ISLAND_ASCII.length * c;
+  const x0 = Math.round(cx - w / 2);
+  const y0 = Math.round(cy - h / 2);
+  const g = s.track(s.add.graphics());
+  ISLAND_ASCII.forEach((row, ry) => {
+    for (let rx = 0; rx < row.length; rx++) {
+      const region = REGION_CHAR[row[rx]] ?? 'meer';
+      g.fillStyle(REGION_COLOR[region] ?? PAL.navy).fillRect(x0 + rx * c, y0 + ry * c, c, c);
+    }
+  });
+  const at = (id: string) => {
+    const t = TOWNS.find((x) => x.id === id);
+    return t ? { x: x0 + (t.x / 8) * c, y: y0 + (t.y / 8) * c } : { x: cx, y: cy };
+  };
+  // Weg von Taufeld nach Runenhall (gepunktet)
+  const a = at('taufeld');
+  const b = at('runenhall');
+  const n = 9;
+  for (let i = 1; i < n; i++) g.fillStyle(PAL.white).fillRect(Math.round(a.x + ((b.x - a.x) * i) / n) - 1, Math.round(a.y + ((b.y - a.y) * i) / n) - 1, 2, 2);
+  // Städte
+  for (const t of TOWNS) {
+    const p = at(t.id);
+    g.fillStyle(PAL.ink).fillRect(Math.round(p.x) - 2, Math.round(p.y) - 2, 5, 5);
+    g.fillStyle(t.id === 'taufeld' ? PAL.gold : t.id === 'runenhall' ? PAL.cream : PAL.stone).fillRect(Math.round(p.x) - 1, Math.round(p.y) - 1, 3, 3);
+  }
+  s.track(addText(s, Math.round(a.x), Math.round(a.y) + 5, 'Start', { font: 'px', ox: 0.5, color: PAL.gold }));
+  s.track(addText(s, Math.round(b.x), Math.round(b.y) - 12, 'Runenhall', { font: 'px', ox: 0.5, color: PAL.cream }));
+}
+
 const PAGES: Page[] = [
   {
     title: 'Willkommen auf der Insel',
@@ -99,6 +152,26 @@ const PAGES: Page[] = [
       'Auf dieser Insel ist alles eine Karte: Heiltränke, Werkzeuge, Schlüssel – sogar die Monster.',
       'Dein Ziel: Sammle alle 100 Sammelkarten in deinem Kartenbuch. Dann öffnet sich das Erste Tor, und du darfst drei Karten mit in die echte Welt nehmen.',
       'Du bist nicht allein: Andere Sammler suchen dieselben Karten.',
+    ],
+  },
+  {
+    title: 'So funktioniert das Spiel',
+    art: (s, x, y) => {
+      const cells: [number, number, string, string, number | undefined][] = [
+        [-32, -36, 'Monster', 'mon-huepfpilz', 0],
+        [32, -36, 'Aufgaben', s.textures.exists('npc-hilde') ? 'npc-hilde' : 'player', charFrame('down', 'idle0')],
+        [-32, 30, 'Truhen', 'chest', 0],
+        [32, 30, 'Läden', 'cards', cardIndex('095')],
+      ];
+      for (const [dx, dy, label, key, frame] of cells) {
+        s.img(x + dx, y + dy, key, frame).setScale(key === 'cards' ? 1 : 2);
+        s.label(x + dx, y + dy + 22, label, PAL.cream);
+      }
+    },
+    text: () => [
+      'Karten bekommst du überall: Besiegte Monster werden manchmal zu Karten, Figuren in den Städten belohnen dich für Aufgaben, und in Truhen, Läden und Minispielen warten weitere.',
+      'Jede neue Karte legst du ins Buch. Bei fehlenden Karten steht dort, wo man sie findet.',
+      'Ein Tag dauert 12 Minuten. Manche Figuren und Wesen zeigen sich nur tagsüber oder nachts.',
     ],
   },
   {
@@ -175,6 +248,18 @@ const PAGES: Page[] = [
     ],
   },
   {
+    title: 'Wohin am Anfang?',
+    art: (s, x, y) => drawIslandMap(s, x, y),
+    text: () => [],
+    steps: () => [
+      { text: 'Sprich mit Lumi am Ersten Tor und lege ihre Startkarten ins Buch.', done: Game.quests.stage('q-start') >= 2 },
+      { text: 'Besiege rund um Taufeld Wollknäuel und Hüpfpilze – leichte Gegner, erste Karten.', done: Game.prog.level >= 3 },
+      { text: 'Hilf in Taufeld: Oma Hilde braucht Wolle, Bauer Korbinian sucht seine Glocke.', done: Game.quests.done('q-wolle') && Game.quests.done('q-glocke') },
+      { text: 'Ab Stufe 3 nach Norden: In Runenhall gibt es Zauberkarten und den Orden der Siegel.', done: Game.visited.has('runenhall') },
+      { text: 'Erkunde dann die anderen Städte. Das Schild in Taufeld zeigt die Richtungen.', done: Game.visited.size >= 4 },
+    ],
+  },
+  {
     title: "Los geht's!",
     art: (s, x, y) => {
       s.img(x, y + 26, 'shadow').setScale(3).setAlpha(0.6);
@@ -186,7 +271,7 @@ const PAGES: Page[] = [
         ? [
             'Lumi wartet gleich neben dir am Ersten Tor. Sprich mit ihr – sie schenkt dir deine ersten Karten.',
             'Der blaue Pfeil zeigt dir den Weg zur nächsten Aufgabe. Alle Aufgaben stehen im Buch unter „Quests".',
-            'Diese Anleitung findest du jederzeit im Pausenmenü.',
+            'Weisst du später nicht weiter, frag Lumi: Sie sagt dir, was als Nächstes sinnvoll ist. Diese Anleitung findest du jederzeit im Pausenmenü.',
           ]
         : [
             'Weisst du nicht weiter? Lumi am Ersten Tor gibt dir jederzeit einen Rat.',
@@ -267,6 +352,13 @@ export class GuideScene extends BaseScene {
         this.track(addText(this, TEXT_X + 84, y + 1, action, { font: 'px-s', color: PAL.white }));
         y += 19;
       }
+    } else if (p.steps) {
+      p.steps().forEach((st, i) => {
+        const lines = wrapText(st.text, TEXT_W - 14);
+        this.track(addText(this, TEXT_X, y, st.done ? '✓' : `${i + 1}`, { font: 'px-o', color: st.done ? PAL.grass : PAL.gold }));
+        this.track(addText(this, TEXT_X + 14, y, lines.join('\n'), { font: 'px-s', color: st.done ? PAL.mist : PAL.white }));
+        y += lines.length * 12 + 6;
+      });
     } else {
       for (const para of p.text()) {
         const lines = wrapText(para, TEXT_W);
