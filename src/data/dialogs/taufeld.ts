@@ -351,12 +351,14 @@ registerModule({
       h.toast('Stufe 3 – jetzt bist du bereit für die Reise nach Runenhall im Norden. Folge dem Pfeil!');
     }
     let want: [number, number] | null = null;
-    if (stage === 1 && placed) {
+    const lumi = NPC_BY_ID.lumi;
+    if (stage === 0 && Game.flags.has('anleitung-gesehen')) {
+      want = townPos(lumi.town ?? 'taufeld', lumi.x, lumi.y);
+    } else if (stage === 1 && placed) {
       if (!Game.flags.has('tipp:lumi-zurueck')) {
         Game.flags.add('tipp:lumi-zurueck');
         h.toast('Prima, die Karten sind im Buch! Sprich noch einmal mit Lumi – sie hat einen Rat für dich.');
       }
-      const lumi = NPC_BY_ID.lumi;
       want = townPos(lumi.town ?? 'taufeld', lumi.x, lumi.y);
     } else if (stage === 3) want = townPos('runenhall');
     // den Pfeil anderer Aufgaben weder überschreiben noch löschen

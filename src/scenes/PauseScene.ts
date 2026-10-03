@@ -24,7 +24,7 @@ export class PauseScene extends BaseScene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => Sound.duck('pause', false));
     this.add.rectangle(0, 0, GAME_W, GAME_H, PAL.ink, 0.6).setOrigin(0, 0);
     const w = 180;
-    const h = 140;
+    const h = 156;
     const x = (GAME_W - w) / 2;
     const y = (GAME_H - h) / 2;
     addPanel(this, x, y, w, h, 'ui-frame');
@@ -38,6 +38,7 @@ export class PauseScene extends BaseScene {
         { label: 'Weiterspielen', onSelect: () => this.resume() },
         { label: 'Speichern', onSelect: () => this.slots('save') },
         { label: 'Laden', onSelect: () => this.slots('load') },
+        { label: 'Anleitung', onSelect: () => this.guide() },
         { label: 'Einstellungen', onSelect: () => this.settings() },
         { label: 'Zum Titelbild', onSelect: () => this.toTitle() },
       ],
@@ -58,6 +59,11 @@ export class PauseScene extends BaseScene {
   private slots(mode: 'save' | 'load'): void {
     this.scene.pause();
     this.scene.launch('Slots', { mode, from: 'Pause' });
+  }
+
+  private guide(): void {
+    this.scene.pause();
+    this.scene.launch('Guide', { from: 'Pause' });
   }
 
   private settings(): void {

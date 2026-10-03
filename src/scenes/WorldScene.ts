@@ -299,8 +299,13 @@ export class WorldScene extends BaseScene {
       this.scene.stop('Hud');
     });
     this.cameras.main.fadeIn(350, 13, 10, 20);
+    const firstVisit = !Game.flags.has('anleitung-gesehen') && Game.quests.stage('q-start') === 0;
     if (this.init0.warp) {
       // Ankunft nach einer Reise
+    } else if (firstVisit && Game.player.map === 'insel') {
+      // Beim ersten Betreten der Insel: Anleitung „Erste Schritte"
+      Game.flags.delete('frisch');
+      this.time.delayedCall(600, () => this.openOverlay('Guide', { from: 'World' }));
     } else if (!this.init0.continue || Game.flags.has('frisch')) {
       Game.flags.delete('frisch');
       this.time.delayedCall(700, () => this.toast('Willkommen auf der Insel! Sprich mit Lumi – sie steht gleich beim Ersten Tor.'));
