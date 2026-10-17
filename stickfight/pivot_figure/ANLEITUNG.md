@@ -64,7 +64,8 @@ Neu erzeugen: `python pivot_figure/make_katana.py`
 | `katana_klassisch.png` | silberne Klinge mit Härtelinie, goldenes Stichblatt, dunkelroter Griff (passend zur Figur) |
 | `katana_schwarz.png` | ganz schwarze Silhouette mit hellem Schneiden-Rand (Stil wie die Sense) |
 | `katana_scheide.png` | schwarze Lack-Scheide mit roter Kordel (für Zieh-Animationen) |
-| `katana_vorschau.png`, `katana_schwarz_vorschau.png` | Figur mit Katana + Großansicht |
+| `katana_gross_quer.png` | klassisches Katana gross und waagrecht (Schneide oben) |
+| `katana_vorschau.png` | alle drei nebeneinander auf grauem Hintergrund |
 
 Wie bei der Sense liegt der **Griffpunkt (Hand, knapp unter dem Stichblatt) genau in der
 Bildmitte**, die Klinge zeigt nach oben, die Schneide nach links. Massstab wie die Figur:

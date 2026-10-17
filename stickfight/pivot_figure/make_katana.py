@@ -201,26 +201,29 @@ def main():
     saya_local(c)
     mf.save(s, "katana_scheide.png")
 
-    # previews: the scythe stickman holding the katana
-    for style, name in (("classic", "katana_vorschau.png"), ("black", "katana_schwarz_vorschau.png")):
-        j = mf.stand_pose(complex(240, 300))
-        s, c = mf.surface(480, 440)
-        mf.draw_figure(c, j, cape_drop=20, scythe=False)
-        draw_katana(c, j["handF"], 28, style)
-        mf.draw_line(c, [j["handF"], j["elbowF"], j["shoulder"]])
-        fig = s
-        s2, c2 = mf.surface(480, 440)
-        c2.set_source_rgb(*mf.BG)
-        c2.paint()
-        c2.identity_matrix()
-        c2.set_source_surface(fig, 0, 0)
-        c2.paint()
-        # big detail view of the sword on the right
-        c2.scale(S, S)
-        c2.translate(425, 240)
-        c2.rotate(math.radians(12))
-        katana_local(c2, style)
-        mf.save(s2, name)
+    # preview without the figure: both swords + scabbard side by side on grey
+    s, c = mf.surface(260, half - GRIP + HANDLE + 16)
+    c.set_source_rgb(*mf.BG)
+    c.paint()
+    for x, style in ((50, "classic"), (130, "black")):
+        c.save()
+        c.translate(x, half - GRIP)
+        katana_local(c, style)
+        c.restore()
+    c.save()
+    c.translate(206, half - GRIP)
+    saya_local(c)
+    c.restore()
+    mf.save(s, "katana_vorschau.png")
+
+    # large single sword, transparent, lying horizontally (blade to the right)
+    big = 2.0
+    s, c = mf.surface((BLADE + HANDLE + 30) * big, 70 * big)
+    c.translate((HANDLE + 12) * big, 40 * big)
+    c.scale(big, big)
+    c.rotate(math.radians(90))
+    katana_local(c, "classic")
+    mf.save(s, "katana_gross_quer.png")
     print("written to", mf.OUT)
 
 
