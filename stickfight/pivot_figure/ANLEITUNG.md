@@ -54,3 +54,19 @@ du die Sense als eigenes Sprite laden und in jedem Frame an die Hand setzen.
 
 Hinweis: Ich konnte die Pivot-Hilfeseiten aus dieser Umgebung nicht öffnen. Die genauen
 Menünamen in deiner Pivot-Version können deshalb abweichen.
+
+## Katana
+
+Neu erzeugen: `python pivot_figure/make_katana.py`
+
+| Datei | Wofür |
+|---|---|
+| `katana_klassisch.png` | silberne Klinge mit Härtelinie, goldenes Stichblatt, dunkelroter Griff (passend zur Figur) |
+| `katana_schwarz.png` | ganz schwarze Silhouette mit hellem Schneiden-Rand (Stil wie die Sense) |
+| `katana_scheide.png` | schwarze Lack-Scheide mit roter Kordel (für Zieh-Animationen) |
+| `katana_vorschau.png`, `katana_schwarz_vorschau.png` | Figur mit Katana + Großansicht |
+
+Wie bei der Sense liegt der **Griffpunkt (Hand, knapp unter dem Stichblatt) genau in der
+Bildmitte**, die Klinge zeigt nach oben, die Schneide nach links. Massstab wie die Figur:
+Klinge 180, Griff 64 (Kopfdurchmesser = 70). Für die rechte Hand / andere Blickrichtung
+das Bild in Pivot spiegeln.
