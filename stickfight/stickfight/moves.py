@@ -52,8 +52,8 @@ def _breathe(p, t):
 # ---------------------------------------------------------------------------
 @move
 def idle(duration=0.6):
-    return MoveDef("idle", [Key(min(0.22, duration), STANCE, "out_cubic")], duration,
-                   procedural=_breathe)
+    # breathing comes from the hero's always-on layer (hero._alive)
+    return MoveDef("idle", [Key(min(0.22, duration), STANCE, "out_cubic")], duration)
 
 
 @move
@@ -80,23 +80,39 @@ def _victory_breathe(p, t):
 # Attacks
 # ---------------------------------------------------------------------------
 @move
-def cross_slash(dist=172, reaction=None):
-    """Double cross slash: both scythes come down in an X."""
+def cross_slash(dist=178, reaction=None):
+    """Double cross slash: coil back (anticipation), both scythes whip down in
+    an X (strike), swing through (follow-through), recoil and settle."""
     react = reaction or dict(type="split", cuts=[-38, 38], vel=(520, -380), spin=600, blood=46)
     k = [
-        Key(0.14, dict(x=-10, torso=192, head=-10,
-                       aF1=200, aF2=215, aB1=165, aB2=190,
-                       wF=255, rF=180, wB=230, rB=0,
-                       lF1=26, lF2=-4, lB1=-22, lB2=-42), "inout_cubic"),
-        Key(0.29, dict(x=70, torso=150, head=-14,
-                       aF1=70, aF2=62, aB1=88, aB2=100,
-                       wF=62, rF=180, wB=80, rB=0,
-                       lF1=62, lF2=4, lB1=-40, lB2=-66), "snap"),
-        Key(0.36, dict(wF=48, wB=70, aF1=64, aB1=82), "out_quad", trail=True),
-        Key(0.66, dict(STANCE, x=70), "out_cubic"),
+        # anticipation: weight back, knees bend, both scythes cocked behind the head
+        Key(0.17, dict(x=-14, torso=194, head=-12,
+                       aF1=196, aF2=212, aB1=162, aB2=188,
+                       wF=252, rF=180, wB=228, rB=0,
+                       lF1=34, lF2=-14, lB1=-14, lB2=-52), "inout_sine"),
+        # moving hold: coil a little further, builds tension
+        Key(0.23, dict(x=-18, torso=199, aF1=203, aF2=220, aB1=168, aB2=195,
+                       wF=262, wB=238, lF1=38, lF2=-18), "out_quad"),
+        # strike: explode forward, blades cross in front
+        Key(0.33, dict(x=72, torso=150, head=-16,
+                       aF1=72, aF2=62, aB1=90, aB2=100,
+                       wF=64, rF=180, wB=84, rB=0,
+                       lF1=64, lF2=4, lB1=-42, lB2=-68), "snap"),
+        # follow-through: blades keep travelling, body sinks into the lunge
+        Key(0.42, dict(x=84, torso=140, head=-20,
+                       aF1=48, aF2=34, aB1=64, aB2=70,
+                       wF=40, wB=64,
+                       lF1=72, lF2=6, lB1=-48, lB2=-74), "out_quad", trail=True),
+        # recoil (overshoot back up)
+        Key(0.62, dict(x=82, torso=164, head=-8,
+                       aF1=58, aF2=96, aB1=40, aB2=120,
+                       wF=118, wB=-118,
+                       lF1=44, lF2=-4, lB1=-26, lB2=-46), "out_back"),
+        # settle into stance
+        Key(0.9, dict(STANCE, x=80), "inout_cubic"),
     ]
-    hits = [Hit(0.235, 0, "damage", 1, dist, react, strong=True)]
-    return MoveDef("cross_slash", k, 0.66, hits)
+    hits = [Hit(0.282, 0, "damage", 1, dist, react, strong=True)]
+    return MoveDef("cross_slash", k, 0.9, hits)
 
 
 @move

@@ -23,6 +23,8 @@ def main():
     ap.add_argument("--out", default=None)
     ap.add_argument("--stills", type=float, nargs="*", default=None, help="times (s) to save as PNG")
     ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument("--scene", default="full", help="full | cross (2 s cross-slash test)")
+    ap.add_argument("--subframes", type=int, default=None, help="motion-blur subframes per frame")
     args = ap.parse_args()
 
     os.makedirs("out", exist_ok=True)
@@ -30,8 +32,9 @@ def main():
     seconds = args.seconds or (3.0 if args.preview else None)
     out = args.out or ("out/preview.mp4" if args.preview else "out/stickfight.mp4")
 
-    choreo = scene.build(seed=args.seed)
-    r = Renderer(choreo, fps=fps)
+    choreo = scene.SCENES[args.scene](seed=args.seed)
+    sub = args.subframes or (2 if args.preview else 6)
+    r = Renderer(choreo, fps=fps, subframes=sub)
     print(f"scene length {choreo.end_time:.2f}s -> video length {r.duration:.2f}s at {fps} fps "
           f"({len(choreo.enemies)} enemies, {len(choreo.hitstops)} hits)")
     limit = None if seconds is None else int(round(seconds * fps))

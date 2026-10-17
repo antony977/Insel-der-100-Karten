@@ -4,6 +4,18 @@ from .choreo import Choreo
 F, B = +1, -1   # hero faces right / left
 
 
+def build_cross_test(seed=7):
+    """2-second test clip: one enemy runs in, double cross slash, ragdoll."""
+    c = Choreo(seed=seed, hero_x=470)
+    c.idle(0.55, facing=F)
+    c.move("cross_slash", F, [c.enemy()])
+    c.idle(0.5)
+    return c
+
+
+SCENES = {}
+
+
 def build(seed=7):
     c = Choreo(seed=seed, hero_x=540)
     E = c.enemy
@@ -35,3 +47,6 @@ def build(seed=7):
     # 14-15 s: victory pose, scythes crossed
     c.move("victory", F, duration=1.25)
     return c
+
+
+SCENES.update(full=build, cross=build_cross_test)

@@ -353,7 +353,7 @@ class Shake:
 # ---------------------------------------------------------------------------
 # Smear trails
 # ---------------------------------------------------------------------------
-def draw_smear(ctx, samples, min_len=70.0, max_jump=170.0, alpha=0.92):
+def draw_smear(ctx, samples, min_len=70.0, max_jump=420.0, alpha=0.92):
     """samples: list of (outer, inner) points, oldest first."""
     if len(samples) < 3:
         return

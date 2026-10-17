@@ -1,55 +1,79 @@
-"""Runtime: steps stateful things (particles, parts, scarf) through scene
+"""Runtime: steps stateful things (particles, ragdolls, scarf) through scene
 time, handles hit events and draws the fight scene in strip coordinates."""
 import cmath
 import math
 
 from . import config, effects, rig
-from .effects import Blood, CutLine, Dust, Flash, Part, Shake, Shock, draw_smear
+from .effects import Blood, CutLine, Dust, Flash, Shake, Shock, draw_smear
+from .ragdoll import Ragdoll
 
 SUBSTEP = 1 / 120.0
-SMEAR_WINDOW = 0.085
-SMEAR_SAMPLES = 12
+SMEAR_WINDOW = 0.09
+SMEAR_SAMPLES = 20
 
 
 class Scarf:
-    """Verlet ribbon tied to the hero's neck."""
+    """Springy verlet ribbon tied to the hero's neck (secondary motion).
 
-    def __init__(self, n=11, seg=11.0):
-        self.n, self.seg = n, seg
+    It is pulled only by gravity, a light breeze and its own inertia, so it
+    trails behind every move and swings back after the body stops."""
+
+    def __init__(self, n=12, seg=10.0, width=7.5, breeze=520.0, phase=0.0, color=config.HERO_SCARF):
+        self.n, self.seg, self.width, self.breeze, self.phase = n, seg, width, breeze, phase
+        self.color = color
         self.pts = None
         self.prev = None
+        self.prev_dt = None
 
     def anchor(self, body):
         p = body.pts
-        return p["neck"] + (p["head"] - p["neck"]) * 0.12
+        return p["neck"] + (p["head"] - p["neck"]) * 0.1
 
     def step(self, dt, body, t):
+        if dt <= 0:
+            return
         a = self.anchor(body)
         seg = self.seg * body.scale
         if self.pts is None:
-            self.pts = [a + complex(-body.facing * seg * i, 0) for i in range(self.n)]
+            self.pts = [a + complex(-body.facing * seg * i, seg * 0.3 * i) for i in range(self.n)]
             self.prev = list(self.pts)
-        f = body.facing
+        corr = dt / self.prev_dt if self.prev_dt else 1.0
+        self.prev_dt = dt
+        f = 1 if body.affine.a >= 0 else -1
         new = [a]
         for i in range(1, self.n):
             p, q = self.pts[i], self.prev[i]
-            wind = complex(-f * (1500 + 600 * math.sin(t * 6.0 + i * 0.5)),
-                           -420 + 1500 * math.sin(t * 13.0 - i * 0.8))
-            acc = wind + complex(0, 500)
-            new.append(p + (p - q) * 0.93 + acc * dt * dt)
+            flutter = math.sin(t * 11.0 - i * 0.75 + self.phase)
+            wind = complex(-f * self.breeze * (1 + 0.35 * flutter), 260 * flutter)
+            acc = wind + complex(0, 900)
+            new.append(p + (p - q) * corr * 0.985 + acc * dt * dt)
         self.prev = self.pts
         self.pts = new
-        for _ in range(4):
+        rest2 = 2 * seg * 0.92
+        for _ in range(6):
             self.pts[0] = a
             for i in range(1, self.n):
                 d = self.pts[i] - self.pts[i - 1]
                 L = abs(d) or 1e-6
-                corr = d * (1 - seg / L)
+                c = d * (1 - seg / L)
                 if i == 1:
-                    self.pts[i] -= corr
+                    self.pts[i] -= c
                 else:
-                    self.pts[i] -= corr * 0.5
-                    self.pts[i - 1] += corr * 0.5
+                    self.pts[i] -= c * 0.5
+                    self.pts[i - 1] += c * 0.5
+            # soft bending stiffness: keeps the cloth springy instead of a rope
+            for i in range(2, self.n):
+                d = self.pts[i] - self.pts[i - 2]
+                L = abs(d) or 1e-6
+                if L < rest2:
+                    c = d * (0.15 * (1 - rest2 / L))
+                    self.pts[i] -= c
+                    if i - 2 > 0:
+                        self.pts[i - 2] += c
+            # do not sink into the floor
+            for i in range(1, self.n):
+                if self.pts[i].imag > config.GROUND_Y - 3:
+                    self.pts[i] = complex(self.pts[i].real, config.GROUND_Y - 3)
 
     def draw(self, ctx, scale):
         if not self.pts:
@@ -62,11 +86,11 @@ class Scarf:
             b = pts[min(i + 1, n - 1)]
             d = b - a
             d = d / abs(d) if abs(d) > 1e-6 else 1
-            w = (7.0 - 4.0 * i / (n - 1)) * scale
+            w = (self.width - (self.width - 2.5) * i / (n - 1)) * scale
             nrm = d * 1j
             left.append(p + nrm * w)
             right.append(p - nrm * w)
-        ctx.set_source_rgb(*config.HERO_SCARF)
+        ctx.set_source_rgb(*self.color)
         ctx.move_to(left[0].real, left[0].imag)
         for q in left[1:]:
             ctx.line_to(q.real, q.imag)
@@ -77,7 +101,7 @@ class Scarf:
         ctx.close_path()
         ctx.fill()
         ctx.set_source_rgb(*config.HERO_SCARF)
-        ctx.arc(pts[0].real, pts[0].imag, 8.5 * scale, 0, 2 * math.pi)
+        ctx.arc(pts[0].real, pts[0].imag, 10.5 * scale, 0, 2 * math.pi)
         ctx.fill()
 
 
@@ -91,7 +115,8 @@ class World:
         self.parts = []
         self.fx = []
         self.shake = Shake()
-        self.scarf = Scarf()
+        self.scarves = [Scarf(), Scarf(n=8, seg=9.0, width=6.0, breeze=430.0, phase=1.7,
+                                         color=config.HERO_SCARF_DARK)]
         self.events = sorted(choreo.events, key=lambda e: e[0])
         self.ei = 0
         self.t = 0.0
@@ -110,7 +135,9 @@ class World:
             self.blood.step(dt)
             for p in self.parts:
                 p.step(dt, nt, self.blood)
-            self.scarf.step(dt, self.hero.body_at(nt), nt)
+            hb = self.hero.body_at(nt)
+            for sc in self.scarves:
+                sc.step(dt, hb, nt)
             self.fx = [f for f in self.fx if f.alive(nt)]
         # events exactly at the current time (e.g. t=0)
         while self.ei < len(self.events) and self.events[self.ei][0] <= s1:
@@ -151,49 +178,42 @@ class World:
         vel = complex(away * vx, vy)
         spin = math.radians(react.get("spin", 600)) * away
         center = (body.pts["hip"] + body.pts["neck"]) / 2
-        lines = body.segments()
-        circles = [(body.pts["head"], body.head_r)]
         lw = e.line_width * e.scale
         rng = self.rng
         typ = react.get("type", "fly")
         cut_angles = []
-
-        def mk(group, v, av):
-            ls, cs, st = group
-            self.parts.append(Part(ls, cs, st, e.color, lw, v, av, rng, rng.uniform(-6, 10), t))
+        doll = Ragdoll(body, e.color, lw, t, rng, rng.uniform(-6, 12))
+        self.parts.append(doll)
 
         if typ == "split":
-            groups = [(lines, circles, [])]
             for ang in react.get("cuts", [0]):
                 a = math.radians(ang)
                 d = complex(away * math.cos(a), math.sin(a))
                 cut_angles.append(cmath.phase(d))
-                groups = [g2 for g in groups for g2 in effects.slice_group(*g, center, d)]
-            for g in groups:
-                pts = [q for pl in g[0] for q in pl] + [c for c, _ in g[1]]
-                gc = sum(pts) / len(pts)
+                doll.cut(center, d)
+            for ids in doll.components():
+                gc = sum(doll.p[k] for k in ids) / len(ids)
                 rel = gc - center
-                sep = rel / abs(rel) * 170 if abs(rel) > 1e-3 else 0
+                sep = rel / abs(rel) * 190 if abs(rel) > 1e-3 else 0
                 upper = rel.imag < 0
-                k = 1.0 if upper else 0.35
-                v = vel * k * rng.uniform(0.85, 1.15) + sep
-                mk(g, v, spin * (1.0 if upper else 0.4) * rng.uniform(0.7, 1.3))
+                k = 1.0 if upper else 0.3
+                doll.set_velocity(ids, vel * k * rng.uniform(0.85, 1.15) + sep,
+                                  spin * (1.0 if upper else 0.35) * rng.uniform(0.7, 1.3))
         elif typ == "behead":
             neck, head = body.pts["neck"], body.pts["head"]
-            p0 = neck + (head - neck) * 0.25
-            d = complex(1, 0)
+            p0 = neck + (head - neck) * 0.3
             cut_angles.append(0.0)
-            groups = effects.slice_group(lines, circles, [], p0, d)
-            for g in groups:
-                if g[1]:   # the head side
-                    mk(g, vel, spin * 1.4)
+            doll.cut(p0, complex(1, 0))
+            for ids in doll.components():
+                if doll.head in ids:
+                    doll.set_velocity(ids, vel, spin * 1.4)
                 else:
-                    mk(g, complex(away * 60, -40), away * 1.6)
+                    doll.set_velocity(ids, complex(away * 90, -30), away * 1.2)
             center = p0
         elif typ == "fall":
-            mk((lines, circles, []), complex(away * 120, -80), away * 2.6)
+            doll.set_velocity(range(len(doll.p)), complex(away * 140, -60), away * 2.2)
         else:  # fly
-            mk((lines, circles, [complex(center.real, center.imag)]), vel, spin)
+            doll.set_velocity(range(len(doll.p)), vel, spin)
         # blood
         n = react.get("blood", 30) * 0.6
         vdir = vel / abs(vel) if abs(vel) > 0 else complex(away, 0)
@@ -290,7 +310,8 @@ class World:
             self.draw_shadow(ctx, b.pts["hip"].real, 42 * e.scale, config.GROUND_Y - max(b.pts["footF"].imag, b.pts["footB"].imag))
         for p in self.parts:
             if p.alpha(s) > 0:
-                self.draw_shadow(ctx, p.pos.real, 26, max(0.0, config.GROUND_Y - p.pos.imag - 20))
+                c = p.center()
+                self.draw_shadow(ctx, c.real, 30, max(0.0, config.GROUND_Y - c.imag - 30))
         self.draw_shadow(ctx, hero_body.pts["hip"].real, 52 * self.hero.scale, hero_pose["air"] * self.hero.scale)
 
         for p in self.parts:
@@ -302,7 +323,8 @@ class World:
         for side in ("B", "F", "T"):
             draw_smear(ctx, self.smear_samples(s, side))
 
-        self.scarf.draw(ctx, self.hero.scale)
+        for sc in self.scarves[::-1]:
+            sc.draw(ctx, self.hero.scale)
         hide = () if self.hero.held(s, "F") else ("F",)
         rig.draw_body(ctx, hero_body, self.hero.color, self.hero.line_width,
                       weapon=self.hero.weapon, hide_weapon=hide, eye=True)

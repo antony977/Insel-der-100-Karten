@@ -30,8 +30,8 @@ def dirv(a):
 @dataclass
 class Proportions:
     torso: float = 60
-    neck: float = 7
-    head_r: float = 16
+    neck: float = 6
+    head_r: float = 20
     upper: float = 35
     fore: float = 33
     thigh: float = 46
@@ -41,7 +41,7 @@ class Proportions:
 
 
 HERO_PROPS = Proportions()
-GRUNT_PROPS = Proportions(torso=58, head_r=15.5, upper=33, fore=32, thigh=45, shin=45)
+GRUNT_PROPS = Proportions(torso=58, head_r=19, upper=33, fore=32, thigh=45, shin=45)
 
 POSE_KEYS = ("x", "air", "rot", "yaw", "torso", "head",
              "aF1", "aF2", "aB1", "aB2", "lF1", "lF2", "lB1", "lB2",
@@ -90,6 +90,7 @@ class Body:
     head_r: float
     eye: complex
     eye_visible: bool
+    prop: Proportions = None
 
     def segments(self):
         """Polylines of the stick figure (used for slicing on hit)."""
@@ -104,17 +105,24 @@ class Body:
 YAW_TILT = 0.24   # camera looks slightly down: spinning limbs trace ellipses
 
 
-def solve(p, facing, base_x, ground_y=config.GROUND_Y, scale=1.0, prop=HERO_PROPS, foot_pad=4.5):
-    """Forward kinematics: pose dict -> Body in world coordinates."""
+def solve(p, facing, base_x, ground_y=config.GROUND_Y, scale=1.0, prop=HERO_PROPS, foot_pad=7.0,
+          stretch=None, hip=None):
+    """Forward kinematics: pose dict -> Body in world coordinates.
+
+    stretch: {"F": k, "B": k} 0..1 smear-frame stretch of arm + weapon.
+    hip:     fixed world hip position (skips automatic ground planting).
+    """
+    stretch = stretch or {}
+    sF, sB = stretch.get("F", 0.0), stretch.get("B", 0.0)
     t = dirv(p["torso"])
     neck = t * prop.torso
     sh = t * prop.torso * prop.shoulder
     hdir = dirv(p["torso"] + p["head"])
     head = neck + hdir * (prop.neck + prop.head_r)
-    eF = sh + dirv(p["aF1"]) * prop.upper
-    hF = eF + dirv(p["aF2"]) * prop.fore
-    eB = sh + dirv(p["aB1"]) * prop.upper
-    hB = eB + dirv(p["aB2"]) * prop.fore
+    eF = sh + dirv(p["aF1"]) * prop.upper * (1 + 0.15 * sF)
+    hF = eF + dirv(p["aF2"]) * prop.fore * (1 + 0.35 * sF)
+    eB = sh + dirv(p["aB1"]) * prop.upper * (1 + 0.15 * sB)
+    hB = eB + dirv(p["aB2"]) * prop.fore * (1 + 0.35 * sB)
     kF = dirv(p["lF1"]) * prop.thigh
     fF = kF + dirv(p["lF2"]) * prop.shin
     kB = dirv(p["lB1"]) * prop.thigh
@@ -152,14 +160,16 @@ def solve(p, facing, base_x, ground_y=config.GROUND_Y, scale=1.0, prop=HERO_PROP
     low = max(low, M.lin(head).imag + off.imag + prop.head_r * s)
     tx = base_x + facing * p["x"] + off.real
     ty = ground_y - foot_pad * s - low - p["air"] * s
+    if hip is not None:
+        tx, ty = hip.real, hip.imag
     M.tx, M.ty = tx, ty
 
     pts = {k: M(v) for k, v in local.items()}
     weapons = {}
-    for side, hand in (("F", hF), ("B", hB)):
+    for side, hand, st in (("F", hF, sF), ("B", hB, sB)):
         wa, roll = p["w" + side], p["r" + side]
-        D = M.lin(dirv(wa))
-        N = M.lin(dirv(wa + 90)) * math.cos(math.radians(roll))
+        D = M.lin(dirv(wa)) * (1 + 0.5 * st)
+        N = M.lin(dirv(wa + 90)) * math.cos(math.radians(roll)) * (1 + 0.2 * st)
         weapons[side] = (pts["hand" + side], D, N)
     depth = {
         "armF": cy + sy * hF.real / 40.0,
@@ -168,7 +178,37 @@ def solve(p, facing, base_x, ground_y=config.GROUND_Y, scale=1.0, prop=HERO_PROP
         "legB": -0.5 * cy + sy * kB.real / 60.0,
     }
     return Body(pts=pts, weapons=weapons, depth=depth, affine=M, facing=facing,
-                scale=s, head_r=prop.head_r * s, eye=M(eye), eye_visible=abs(cy) > 0.35)
+                scale=s, head_r=prop.head_r * s, eye=M(eye), eye_visible=abs(cy) > 0.35,
+                prop=prop)
+
+
+def two_bone_ik(root, target, l1, l2, bend):
+    """Knee/elbow position for a two-bone chain. bend=+1 puts the joint on the
+    visual right of the root->target direction (screen coords, y down)."""
+    d = target - root
+    L = abs(d)
+    if L < 1e-6:
+        d, L = 1j, 1e-6
+    u = d / L
+    L = min(max(L, abs(l1 - l2) + 1e-3), l1 + l2 - 1e-3)
+    ca = (l1 * l1 + L * L - l2 * l2) / (2 * l1 * L)
+    A = math.acos(max(-1.0, min(1.0, ca)))
+    joint = root + u * complex(math.cos(A), -bend * math.sin(A)) * l1
+    return joint, root + u * L
+
+
+def apply_leg_ik(body, targets):
+    """Re-solve legs so the feet sit on world `targets` {"F": pos, "B": pos}."""
+    prop, s = body.prop, body.scale
+    vis = 1 if body.affine.a >= 0 else -1          # visual facing (incl. yaw)
+    hip = body.pts["hip"]
+    for side, tgt in targets.items():
+        if tgt is None:
+            continue
+        knee, foot = two_bone_ik(hip, tgt, prop.thigh * s, prop.shin * s, vis)
+        body.pts["knee" + side] = knee
+        body.pts["foot" + side] = foot
+    return body
 
 
 def _poly(ctx, pts):
@@ -197,7 +237,7 @@ def draw_body(ctx, body, color, lw, weapon=None, hide_weapon=(), alpha=1.0, eye=
                 weapon.draw(ctx, grip, D, N, alpha=alpha)
             stroke([p["hand" + side], p["elbow" + side], p["shoulder"]], lw)
             # fist
-            ctx.arc(p["hand" + side].real, p["hand" + side].imag, lw * 0.62, 0, 2 * math.pi)
+            ctx.arc(p["hand" + side].real, p["hand" + side].imag, lw * 0.58, 0, 2 * math.pi)
             ctx.fill()
         return f
 
@@ -205,7 +245,7 @@ def draw_body(ctx, body, color, lw, weapon=None, hide_weapon=(), alpha=1.0, eye=
         return lambda: stroke([p["foot" + side], p["knee" + side], p["hip"]], lw)
 
     def core():
-        stroke([p["hip"], p["neck"]], lw * 1.12)
+        stroke([p["hip"], p["neck"], p["neck"] + (p["head"] - p["neck"]) * 0.5], lw)
         ctx.set_source_rgba(*color, alpha)
         ctx.arc(p["head"].real, p["head"].imag, body.head_r, 0, 2 * math.pi)
         ctx.fill()
@@ -214,9 +254,10 @@ def draw_body(ctx, body, color, lw, weapon=None, hide_weapon=(), alpha=1.0, eye=
             e = body.eye
             fw = 1 if body.affine.a >= 0 else -1   # visual facing incl. yaw
             ctx.set_source_rgba(1, 1, 1, alpha)
-            ctx.move_to(e.real - 5 * body.scale * fw, e.imag - 2.6 * body.scale)
-            ctx.line_to(e.real + 5.5 * body.scale * fw, e.imag + 0.4 * body.scale)
-            ctx.line_to(e.real - 3 * body.scale * fw, e.imag + 2.4 * body.scale)
+            k = body.scale * 1.3
+            ctx.move_to(e.real - 5 * k * fw, e.imag - 2.6 * k)
+            ctx.line_to(e.real + 5.5 * k * fw, e.imag + 0.4 * k)
+            ctx.line_to(e.real - 3 * k * fw, e.imag + 2.4 * k)
             ctx.close_path()
             ctx.fill()
 

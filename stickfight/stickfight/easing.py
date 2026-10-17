@@ -28,8 +28,10 @@ def out_back(u, s=1.6):
 
 
 def snap(u):
-    """Very fast start, soft landing - for strikes."""
-    return out_expo(u) * 0.85 + out_quint(u) * 0.15
+    """Whip curve for strikes: a split-second acceleration, peak speed at 1/3,
+    long soft deceleration. Peak speed is only 1.8x the average, so a fast
+    strike spreads over several frames instead of teleporting."""
+    return 1 - (1 - u) ** 3 * (1 + 3 * u)
 
 
 EASES = {name: fn for name, fn in globals().items()

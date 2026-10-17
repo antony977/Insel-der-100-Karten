@@ -7,7 +7,11 @@ pip install pycairo            # ffmpeg muss installiert sein
 python render.py --preview     # 3 s @ 30 fps -> out/preview.mp4 + Einzelbilder
 python render.py               # volles Video  -> out/stickfight.mp4
 python render.py --stills 1.2 7.0 11.6   # nur PNGs zu diesen Zeitpunkten
+python render.py --scene cross --out out/cross_slash_test.mp4   # 2-s-Test: nur Kreuzschnitt
 ```
+
+Export: 60 fps (`-r 60`), `yuv420p`, CRF 18. Jeder Frame ist ein Motion-Blur-Mittel aus
+6–24 Subframes (adaptiv je nach Geschwindigkeit), dadurch sind alle 60 Frames/s einzigartig.
 
 ## Aufbau (`stickfight/`)
 
@@ -15,8 +19,10 @@ python render.py --stills 1.2 7.0 11.6   # nur PNGs zu diesen Zeitpunkten
 |---|---|
 | `config.py` | Auflösung, FPS, Streifen-Position, Farben, Kamera-Zoom |
 | `rig.py` | Skelett (Kopf, Hals, Torso, Schultern, Ellbogen, Hände, Hüfte, Knie, Füsse), Vorwärtskinematik, Zeichnen |
-| `easing.py` | Easing-Kurven (ease-in/out, snap, back …) |
-| `anim.py` | `Key`, `Hit`, `Throw`, `MoveDef`, Keyframe-Interpolation |
+| `easing.py` | Easing-Kurven (ease-in/out, `snap` = Peitschen-Kurve für Schläge, back …) |
+| `anim.py` | `Key`, `Hit`, `Throw`, `MoveDef`; Gelenkwinkel per Catmull-Rom-Spline + Easing |
+| `ik.py` | Fuss-Planting (Füsse bleiben am Boden, kleine Schritte bei Verlagerung) |
+| `ragdoll.py` | Verlet-Ragdoll für getroffene Gegner, inkl. Zerschneiden entlang der Schnittlinie |
 | `moves.py` | **Move-Bibliothek** des Helden (Kreuzschnitt, Wirbel, Sprung-Schnitt, Bumerang, Einhaken, Salto, …) |
 | `weapons.py` | **Waffen** (`Scythe`); Geometrie in lokalen Koordinaten, hängt an der Hand und dreht mit |
 | `hero.py` | Zeitleiste des Helden (Moves aneinandergereiht, auswertbar zu jeder Zeit) |
@@ -26,7 +32,7 @@ python render.py --stills 1.2 7.0 11.6   # nur PNGs zu diesen Zeitpunkten
 | `world.py` | Simulation (Partikel, Teile, Schal) und Zeichnen der Szene |
 | `scene.py` | **Der eigentliche Ablauf der 15 s** |
 | `overlays.py` | Ebenen über dem ganzen Hochformat – hier kommt später Text hin (`TextOverlay`) |
-| `video.py` | Frame-Rendering (Letterbox) und MP4-Export |
+| `video.py` | Frame-Rendering mit adaptivem Motion Blur (Letterbox) und MP4-Export |
 
 ## Erweitern
 

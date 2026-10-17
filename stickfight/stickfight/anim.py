@@ -84,7 +84,13 @@ class MoveDef:
 
 
 class Track:
-    """Evaluates a list of keys starting from a given pose."""
+    """Evaluates a list of keys starting from a given pose.
+
+    Joint *angles* are interpolated (never positions), so limbs keep their
+    length. Between keys the path is a time-aware Catmull-Rom spline (smooth
+    through the keys, no corners), the timing along it uses the key's easing.
+    """
+    TENSION = 0.0     # 0 = Catmull-Rom, 1 = no tangents (plain eased blend)
 
     def __init__(self, start_pose, keys):
         self.times = [0.0]
@@ -114,9 +120,35 @@ class Track:
         for i in range(1, len(ts)):
             if t <= ts[i]:
                 span = ts[i] - ts[i - 1]
-                u = 1.0 if span <= 0 else (t - ts[i - 1]) / span
-                return lerp_pose(self.poses[i - 1], self.poses[i], self.eases[i](u))
+                if span <= 0:
+                    return dict(self.poses[i])
+                u = self.eases[i]((t - ts[i - 1]) / span)
+                return self._spline(i, u)
         return dict(self.poses[-1])
+
+    def _spline(self, i, u):
+        ts, P = self.times, self.poses
+        n = len(P)
+        i0, i3 = max(i - 2, 0), min(i + 1, n - 1)
+        t0, t1, t2, t3 = ts[i0], ts[i - 1], ts[i], ts[i3]
+        p0, p1, p2, p3 = P[i0], P[i - 1], P[i], P[i3]
+        span = t2 - t1
+        k = 1.0 - self.TENSION
+        u2, u3 = u * u, u * u * u
+        h00 = 2 * u3 - 3 * u2 + 1
+        h10 = u3 - 2 * u2 + u
+        h01 = -2 * u3 + 3 * u2
+        h11 = u3 - u2
+        out = {}
+        for key, a in p1.items():
+            b = p2[key]
+            if a == b:          # held value: no drift caused by the neighbours
+                out[key] = a
+                continue
+            m1 = (b - p0[key]) / (t2 - t0) * span * k if t2 > t0 else 0.0
+            m2 = (p3[key] - a) / (t3 - t1) * span * k if t3 > t1 else 0.0
+            out[key] = h00 * a + h10 * m1 + h01 * b + h11 * m2
+        return out
 
     @property
     def end_pose(self):

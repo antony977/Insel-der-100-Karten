@@ -9,7 +9,28 @@ from dataclasses import dataclass
 
 from . import config, rig
 from .anim import MoveDef, Track
+from .ik import FootPlanter
 from .moves import STANCE
+
+SMEAR_FRAME_SPEED = 2600.0   # deg/s of weapon swing where smear-stretching starts
+SMEAR_FRAME_RANGE = 2600.0
+
+
+def _alive(p, t):
+    """Always-on secondary layer: breathing / bobbing so the body never freezes."""
+    b = math.sin(t * 5.0)
+    b2 = math.sin(t * 5.0 + 0.9)
+    p["torso"] += 1.6 * b
+    p["head"] += 1.8 * b2
+    p["aF1"] += 2.5 * b2
+    p["aB1"] -= 2.5 * b2
+    p["aF2"] += 2.0 * b
+    p["wF"] += 2.2 * math.sin(t * 4.1 + 0.3)
+    p["wB"] -= 2.2 * math.sin(t * 4.1 + 1.4)
+    p["lF1"] += 1.5 * b
+    p["lF2"] -= 1.5 * b
+    p["lB2"] -= 1.5 * b
+    return p
 
 
 def _wrap(a):
@@ -31,7 +52,7 @@ class Segment:
 
 class Hero:
     def __init__(self, x=540.0, facing=1, scale=1.22, weapon=None, color=config.HERO,
-                 line_width=9.0, props=rig.HERO_PROPS):
+                 line_width=12.5, props=rig.HERO_PROPS):
         self.scale = scale
         self.weapon = weapon
         self.color = color
@@ -41,6 +62,7 @@ class Hero:
         self._start_x = x
         self._start_facing = facing
         self._start_pose = dict(STANCE)
+        self.planter = None
 
     # -- building --------------------------------------------------------------
     def add(self, move, facing=None, start=None):
@@ -80,11 +102,34 @@ class Hero:
         p = seg.track(lt)
         if seg.move.procedural:
             p = seg.move.procedural(p, lt)
-        return p, seg
+        return _alive(p, t), seg
+
+    def stretch_at(self, t, dt=1 / 240.0):
+        """Smear-frame stretch per hand, from the weapon's angular speed."""
+        a, _ = self.pose_at(t)
+        b, _ = self.pose_at(max(t - dt, 0.0))
+        out = {}
+        for side in ("F", "B"):
+            w = abs(a["w" + side] - b["w" + side]) / dt
+            out[side] = min(max((w - SMEAR_FRAME_SPEED) / SMEAR_FRAME_RANGE, 0.0), 1.0)
+        return out
+
+    def fk_body_at(self, t):
+        p, seg = self.pose_at(t)
+        return rig.solve(p, seg.facing, seg.x0, scale=self.scale, prop=self.props)
 
     def body_at(self, t):
         p, seg = self.pose_at(t)
-        return rig.solve(p, seg.facing, seg.x0, scale=self.scale, prop=self.props)
+        body = rig.solve(p, seg.facing, seg.x0, scale=self.scale, prop=self.props,
+                         stretch=self.stretch_at(t))
+        if self.planter is not None:
+            rig.apply_leg_ik(body, self.planter.lookup(t, body))
+        return body
+
+    def bake(self):
+        """Pre-compute foot plants (call once the timeline is complete)."""
+        self.planter = None
+        self.planter = FootPlanter(self.fk_body_at, self.end_time + 0.5)
 
     def x_at(self, t):
         p, seg = self.pose_at(t)
